@@ -30,3 +30,6 @@ This is still a client-side prototype. Real email delivery, server-side authenti
 
 
 Version 52 targeted fixes: enquiry records are isolated by the internal MyBAI member identity on the member side, while the personnel portal continues to see the global enquiry queue. Enquiry IDs are generated as a persistent sequential format such as ENQ-000000001, ENQ-000000002, etc.
+
+
+Maintenance note (v67): duplicate top-level function declarations and redundant renderer bootstrap hooks were consolidated, retaining the latest effective implementations.

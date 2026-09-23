@@ -490,15 +490,28 @@ input:focus,select:focus,textarea:focus{border-color:#3b82b3;box-shadow:0 0 0 2p
   position:absolute;
   top:16px;
   left:18px;
-  border:0;
-  background:transparent;
-  color:#397fa9;
-  font-size:14px;
-  font-weight:500;
-  padding:6px 8px;
   cursor:pointer;
 }
-.auth-back:hover{text-decoration:underline}
+.back-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:max-content;
+  min-height:36px;
+  padding:7px 12px;
+  border:1px solid #397fa9;
+  border-radius:7px;
+  background:#fff;
+  color:#397fa9;
+  font-size:13px;
+  font-weight:500;
+  line-height:1.2;
+  text-decoration:none;
+  white-space:nowrap;
+  cursor:pointer;
+  box-sizing:border-box;
+}
+.back-btn:hover{background:#f3f8fb;text-decoration:none}
 .auth-choice-card,.registration-card,.verify-card,.new-application-card{position:relative}
 .auth-back-choice{top:13px;left:14px;text-align:left}
 .auth-back-form{top:8px;left:18px;text-align:left}
@@ -526,8 +539,7 @@ input:focus,select:focus,textarea:focus{border-color:#3b82b3;box-shadow:0 0 0 2p
 .profile-helper{font-size:12px;color:#888;line-height:1.4;margin:7px 0 0;max-width:575px}
 .change-email-btn{width:260px;max-width:100%;margin-top:24px}
 .email-change-panel{position:relative}
-.profile-back{border:0;background:transparent;color:#397fa9;padding:0;margin:0 0 13px;font-size:14px}
-.profile-back:hover{text-decoration:underline}
+.profile-back{margin:0 0 13px;font-size:13px}
 .email-change-panel h2{margin-top:0}
 .email-change-current{border:1px solid #e5e5e5;border-radius:9px;background:#fafbfb;padding:12px 14px;margin:0 0 20px;max-width:700px}
 .email-change-current span{display:block;color:#888;font-size:11px;margin-bottom:4px}
@@ -754,3 +766,65 @@ input:focus,select:focus,textarea:focus{border-color:#3b82b3;box-shadow:0 0 0 2p
 .enquiry-member-reply{margin-top:16px;border:1px solid #dfe6e8;border-radius:10px;background:#fbfcfc;padding:13px}
 .enquiry-member-reply textarea{min-height:110px}
 .enquiry-member-reply .enquiry-actions{justify-content:flex-end;margin-top:8px}
+
+
+/* Member notification dropdown */
+.member-notification-dropdown{
+  position:fixed;
+  z-index:3000;
+  background:#fff;
+  border:1px solid #dfe6ea;
+  border-radius:12px;
+  box-shadow:0 12px 30px rgba(25,55,75,.18);
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(-5px);
+  transition:opacity .12s ease,transform .12s ease;
+}
+.member-notification-dropdown.visible{opacity:1;transform:translateY(0)}
+.member-notification-dropdown.open{opacity:1;transform:translateY(0)}
+.notification-dropdown-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 16px;border-bottom:1px solid #e6ecef;background:#fff;
+}
+.notification-dropdown-head>div{display:flex;flex-direction:column;gap:2px}
+.notification-dropdown-head b{color:#397fa9;font-size:15px}
+.notification-dropdown-head small{color:#8d9aa3;font-size:11px}
+.notification-text-action,.notification-clear-action{
+  border:0;background:transparent;color:#397fa9;cursor:pointer;font-size:12px;padding:4px 0;
+}
+.notification-text-action:disabled,.notification-clear-action:disabled{color:#b7c0c5;cursor:default}
+.notification-list{max-height:min(430px,60vh);overflow:auto;background:#fff}
+.notification-item{
+  width:100%;display:flex;align-items:flex-start;gap:10px;text-align:left;
+  border:0;border-bottom:1px solid #edf1f3;background:#fff;padding:13px 16px;cursor:pointer;
+}
+.notification-item:hover{background:#f7fbfd}
+.notification-item.unread{background:#f3f9fc}
+.notification-item-dot{width:8px;height:8px;border-radius:50%;background:transparent;flex:0 0 auto;margin-top:5px}
+.notification-item.unread .notification-item-dot{background:#49cddd}
+.notification-item-body{min-width:0;display:flex;flex-direction:column;gap:4px;flex:1}
+.notification-item-body b{color:#35546a;font-size:12px;line-height:1.45;font-weight:500}
+.notification-item.unread .notification-item-body b{font-weight:600;color:#2e6f96}
+.notification-item-body small{color:#9aa6ad;font-size:10px}
+.notification-item-new{color:#397fa9;font-size:10px;font-weight:600;white-space:nowrap;padding-top:2px}
+.notification-dropdown-foot{display:flex;justify-content:flex-end;padding:9px 16px;border-top:1px solid #e6ecef;background:#fbfcfd}
+.notification-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:36px 20px;color:#8d9aa3}
+.notification-empty b{color:#397fa9;font-size:13px}
+.notification-empty span{font-size:11px}
+@media(max-width:650px){
+  .member-notification-dropdown{max-width:calc(100vw - 24px)}
+  .notification-item{padding:12px 14px}
+}
+
+/* Enquiry attachment display */
+.enquiry-attachment,.admin-enquiry-attachment{display:flex;align-items:center;gap:10px;margin-top:10px;padding:9px 11px;border:1px solid #d7e1e7;border-radius:8px;background:#f7fafc;max-width:420px}.attachment-icon{font-size:18px}.attachment-info{display:flex;flex-direction:column;min-width:0;flex:1}.attachment-info b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.attachment-info small{font-size:10px;color:#71808c;margin-top:2px}.attachment-view-btn{border:1px solid #2f7fae;background:#fff;color:#2f7fae;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer}.attachment-view-btn:hover{background:#eef7fb}
+
+.selected-enquiry-file{display:flex;align-items:center;gap:8px;margin-top:7px;padding:8px 10px;border:1px solid #d7e1e7;border-radius:8px;background:#f7fafc;max-width:520px}.selected-enquiry-file>span{font-size:16px}.selected-enquiry-file>div{display:flex;flex-direction:column;min-width:0;flex:1}.selected-enquiry-file b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.selected-enquiry-file small{font-size:9px;color:#71808c;margin-top:2px}.selected-enquiry-file button{border:1px solid #c9d5dc;background:#fff;color:#52636d;border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer}.selected-enquiry-file button:hover{background:#eef7fb}.attachment-count{font-size:10px;color:#71808c;margin-top:5px}
+
+/* Link application validation modal */
+.link-application-modal{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(20,35,50,.52)}
+.link-application-modal-card{width:min(430px,calc(100vw - 40px));background:#fff;border:1px solid #dfe6ea;border-radius:12px;box-shadow:0 18px 45px rgba(20,45,65,.25);padding:24px;text-align:center}
+.link-application-modal-card h3{margin:0 0 8px;color:#397fa9;font-size:20px}
+.link-application-modal-card p{margin:0 0 18px;color:#66757f;font-size:12px;line-height:1.55}
+.link-application-modal-card .primary{width:auto;min-width:82px;margin:0 auto}
