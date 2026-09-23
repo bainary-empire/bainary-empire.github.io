@@ -1,4 +1,4 @@
-# BAI Personnel Portal v18
+# BAI Personnel Portal v22
 
 Updated Personnel Portal authentication to use personnel accounts stored in the shared `baiPersonnelAccounts` localStorage registry created by the BAI Admin Portal.
 
