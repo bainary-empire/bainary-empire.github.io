@@ -1,4 +1,10 @@
 
+
+const DEFAULT_ACCOUNTS=[
+ {id:'PERS-0001',email:'support@bai.local',password:'BAI-support',name:'BAI Support Personnel',role:'Personnel',status:'Active',mustChangePassword:false,contact:''},
+ {id:'PERS-0002',email:'maria.santos@bai.local',password:'BAI-support2',name:'Maria Santos',role:'Personnel',status:'Active',mustChangePassword:false,contact:''}
+];
+
 const app = document.getElementById('app');
 let enquiryRealtimeTimer = null;
 let enquiryRealtimeSignature = '';
@@ -1770,38 +1776,38 @@ function completeRegistrationVerification(){
   go('created');
 }
 function startLogin(){
-  const email=document.getElementById('loginEmail');
-  email?.closest('.field')?.querySelector('.field-error')?.remove();
-  if(!email || !email.value.trim()){ showFieldError(email,'Please enter your email address.'); return; }
-  if(!isValidEmailAddress(email.value)){ showFieldError(email,'Please enter a valid email address.'); return; }
-  const normalized=normalizeAccountEmail(email.value);
-  let account=findAccountByEmail(normalized);
-  /* Recover the currently known account from this browser if its registry was
-     temporarily unavailable, without turning an unknown email into an account. */
-  if(!account && normalizeAccountEmail(sessionStorage.getItem('baiAccountEmail')||'')===normalized && sessionStorage.getItem('baiAccountId')){
-    account={
-      id:sessionStorage.getItem('baiAccountId'),
-      email:normalized,
-      name:sessionStorage.getItem('baiAccountName')||'MyBAI User',
-      firstName:sessionStorage.getItem('baiAccountFirstName')||'',
-      lastName:sessionStorage.getItem('baiAccountLastName')||'',
-      gender:sessionStorage.getItem('baiAccountGender')||'',
-      dob:sessionStorage.getItem('baiAccountDob')||'',
-      civilStatus:sessionStorage.getItem('baiAccountCivilStatus')||'',
-      guardianEmail:sessionStorage.getItem('baiGuardianEmail')||'',
-      type:sessionStorage.getItem('baiAccountType')||'adult',
-      applications:getApplicationsSafeForAccount()
-    };
-    const accounts=getAccountRegistry();
-    if(!accounts.some(a=>a.id===account.id)) saveAccountRegistry([...accounts,account]);
-  }
-  if(!account){ showFieldError(email,'No MyBAI account was found with this email address. Please create an account first.'); return; }
-  email.closest('.field')?.classList.remove('invalid');
-  savePendingLoginData({email:normalized,accountId:account.id,accountSnapshot:account});
-  sessionStorage.setItem('baiPendingLoginAccountSnapshot',JSON.stringify(account));
-  sessionStorage.setItem('baiLoginOtpSent','false');
-  sessionStorage.removeItem('baiLoginOtp');
-  sessionStorage.removeItem('baiLoginOtpSentAt');
+//  const email=document.getElementById('loginEmail');
+//  email?.closest('.field')?.querySelector('.field-error')?.remove();
+//  if(!email || !email.value.trim()){ showFieldError(email,'Please enter your email address.'); return; }
+//  if(!isValidEmailAddress(email.value)){ showFieldError(email,'Please enter a valid email address.'); return; }
+//  const normalized=normalizeAccountEmail(email.value);
+//  let account=findAccountByEmail(normalized);
+//  /* Recover the currently known account from this browser if its registry was
+//     temporarily unavailable, without turning an unknown email into an account. */
+//  if(!account && normalizeAccountEmail(sessionStorage.getItem('baiAccountEmail')||'')===normalized && sessionStorage.getItem('baiAccountId')){
+//    account={
+//      id:sessionStorage.getItem('baiAccountId'),
+//      email:normalized,
+//      name:sessionStorage.getItem('baiAccountName')||'MyBAI User',
+//      firstName:sessionStorage.getItem('baiAccountFirstName')||'',
+//      lastName:sessionStorage.getItem('baiAccountLastName')||'',
+//      gender:sessionStorage.getItem('baiAccountGender')||'',
+//      dob:sessionStorage.getItem('baiAccountDob')||'',
+//      civilStatus:sessionStorage.getItem('baiAccountCivilStatus')||'',
+//      guardianEmail:sessionStorage.getItem('baiGuardianEmail')||'',
+//      type:sessionStorage.getItem('baiAccountType')||'adult',
+//      applications:getApplicationsSafeForAccount()
+//    };
+//    const accounts=getAccountRegistry();
+//    if(!accounts.some(a=>a.id===account.id)) saveAccountRegistry([...accounts,account]);
+//  }
+//  if(!account){ showFieldError(email,'No MyBAI account was found with this email address. Please create an account first.'); return; }
+//  email.closest('.field')?.classList.remove('invalid');
+//  savePendingLoginData({email:normalized,accountId:account.id,accountSnapshot:account});
+//  sessionStorage.setItem('baiPendingLoginAccountSnapshot',JSON.stringify(account));
+//  sessionStorage.setItem('baiLoginOtpSent','false');
+//  sessionStorage.removeItem('baiLoginOtp');
+//  sessionStorage.removeItem('baiLoginOtpSentAt');
   go('login-verify');
 }
 function loginUser(){
