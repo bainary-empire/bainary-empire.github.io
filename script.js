@@ -17,10 +17,10 @@ function getRegistrationPageType(){
   return null;
 }
 function go(page){
-  const currentType=getRegistrationPageType();
-  if(currentType) saveRegistrationDraft(currentType);
+  //const currentType=getRegistrationPageType();
+  //if(currentType) saveRegistrationDraft(currentType);
   location.hash = page; render(); window.scrollTo(0,0);
-}
+	}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 window.baiUploadFiles = window.baiUploadFiles || {};
