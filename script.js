@@ -1811,28 +1811,28 @@ function startLogin(){
   go('login-verify');
 }
 function loginUser(){
-  const input=document.getElementById('loginOtp');
-  if(!validateOtp('loginOtp')) return;
-  const pending=v62PendingLogin();
-  if(!pending){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
-  const accounts=getAccountRegistry();
-  let account=(pending.accountId?accounts.find(a=>a.id===pending.accountId):null)||findAccountByEmail(pending.email);
-  if(!account && pending.accountSnapshot){
-    const snapshot=pending.accountSnapshot;
-    if(snapshot.id && normalizeAccountEmail(snapshot.email)===normalizeAccountEmail(pending.email)){
-      account=snapshot;
-      saveAccountRegistry([...accounts, snapshot]);
-    }
-  }
-  if(!account){ showFieldError(input,'No MyBAI account was found with this email address. Please create an account first.'); return; }
-  hydrateAccountSession(account);
-  sessionStorage.setItem('baiLoggedIn','true');
-  sessionStorage.removeItem('baiLoginOtpSent');
-  sessionStorage.removeItem('baiLoginOtp');
-  sessionStorage.removeItem('baiLoginOtpSentAt');
-  sessionStorage.removeItem('baiPendingLoginAccountSnapshot');
-  clearPendingLoginData();
-  sessionStorage.removeItem('baiComplaintReturn');
+  //const input=document.getElementById('loginOtp');
+  //if(!validateOtp('loginOtp')) return;
+  //const pending=v62PendingLogin();
+  //if(!pending){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
+  //const accounts=getAccountRegistry();
+  //let account=(pending.accountId?accounts.find(a=>a.id===pending.accountId):null)||findAccountByEmail(pending.email);
+  //if(!account && pending.accountSnapshot){
+  //  const snapshot=pending.accountSnapshot;
+  //  if(snapshot.id && normalizeAccountEmail(snapshot.email)===normalizeAccountEmail(pending.email)){
+  //    account=snapshot;
+  //    saveAccountRegistry([...accounts, snapshot]);
+  //  }
+  //}
+  //if(!account){ showFieldError(input,'No MyBAI account was found with this email address. Please create an account first.'); return; }
+  //hydrateAccountSession(account);
+  //sessionStorage.setItem('baiLoggedIn','true');
+  //sessionStorage.removeItem('baiLoginOtpSent');
+  //sessionStorage.removeItem('baiLoginOtp');
+  //sessionStorage.removeItem('baiLoginOtpSentAt');
+  //sessionStorage.removeItem('baiPendingLoginAccountSnapshot');
+  //clearPendingLoginData();
+  //sessionStorage.removeItem('baiComplaintReturn');
   go('dashboard');
 }
 function proceedAfterCreated(){
