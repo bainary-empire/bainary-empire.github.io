@@ -120,7 +120,7 @@ function buildTimeline(status){
 
 
 function uploadIcon(){
- return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#2f75a8" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#2f75a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+ return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function authBrand(){
