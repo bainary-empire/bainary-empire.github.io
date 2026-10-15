@@ -181,8 +181,13 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 }
 .nav button{transition:transform .2s ease,background .2s ease}
 .nav button:hover{background:rgba(255,255,255,.16);transform:translateX(6px)}
-.nav button.active{background:linear-gradient(135deg,#d6b06c,#c19a4e);color:#27354e;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.2)}
-.nav button.active{outline:4px solid rgba(255,255,255,.9);outline-offset:-2px}
+.nav button{display:flex;align-items:center;gap:12px;position:relative}
+.nav .ni{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button.active{background:rgba(255,255,255,.10);color:#fff;font-weight:600}
+.nav button.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:#d6b06c}
+.nav button.active .ni{color:#d6b06c}
+.nav button.active:hover{transform:none}
+
 .help{
   position:absolute;left:10px;right:10px;bottom:70px;background:#27354e;border-radius:12px;padding:16px 10px;text-align:center;font-size:11px
 }
@@ -236,7 +241,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
   .login-screen{grid-template-columns:1fr}.login-visual{min-height:520px;background-position:center top}
   .complaint-card{padding:35px 8vw}
   .complaint-success-card{padding:30px 24px}
-  .dashboard{grid-template-columns:75px 1fr}.sidebar-logo{margin:6px 4px 30px;height:80px;background:transparent}.sidebar-logo img{width:70px;height:70px}.nav button{font-size:0;text-align:center}.nav button:before{font-size:18px;content:"•"}.help{display:none}
+  .dashboard{grid-template-columns:75px 1fr}.sidebar-logo{margin:6px 4px 30px;height:80px;background:transparent}.sidebar-logo img{width:70px;height:70px}.nav button{font-size:0;justify-content:center;gap:0}.nav .ni{width:22px;height:22px}.help{display:none}
 }
 @media(max-width:650px){
   .auth-card{padding:25px 18px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.auth-card{min-height:620px}
