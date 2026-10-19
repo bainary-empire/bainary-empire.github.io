@@ -1121,7 +1121,12 @@ function login(){
      <div class="field"><label>Email Address</label><input id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="Enter your email address" oninput="validateLoginEmailInput(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();startLogin();}"></div>
      <p class="otp-hint">A One-Time Password (OTP) will be sent to the email address<br>associated with your MyBAI account.</p>
      <div class="auth-actions"><button class="primary" onclick="startLogin()">Sign in</button></div>
-     <div class="divider">OR</div>
+     <div class="divider">or sign in with</div>
+     <div class="social-row">
+       <button type="button" class="social-btn" onclick="socialLogin('google')" aria-label="Sign in with Google" title="Google"><i class="fa-brands fa-google"></i></button>
+       <button type="button" class="social-btn" onclick="socialLogin('facebook')" aria-label="Sign in with Facebook" title="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
+       <button type="button" class="social-btn" onclick="socialLogin('x')" aria-label="Sign in with X" title="X"><i class="fa-brands fa-x-twitter"></i></button>
+     </div>
      <button class="primary" onclick="go('signup')">Create Account</button>
      <div class="terms">By signing in, you agree to our <a href="#" onclick="return false">Terms of Use</a> and <a href="#" onclick="return false">Privacy Policy</a>.</div>
    </div></section>
@@ -1825,6 +1830,16 @@ function startLoginOld(){
 //  sessionStorage.removeItem('baiLoginOtp');
 //  sessionStorage.removeItem('baiLoginOtpSentAt');
   go('login-verify');
+}
+function socialLogin(provider){
+  const names={google:'Google',facebook:'Facebook',x:'X'};
+  const name=names[provider]||'this provider';
+  document.getElementById('socialLoginMessage')?.remove();
+  const modal=document.createElement('div');
+  modal.id='socialLoginMessage';
+  modal.className='link-application-modal';
+  modal.innerHTML=`<div class="link-application-modal-card" role="dialog" aria-modal="true" aria-labelledby="socialLoginTitle"><h3 id="socialLoginTitle">Sign in with ${name}</h3><p>${name} sign-in is not connected to this prototype yet. Please sign in with your email address instead.</p><button type="button" class="primary" onclick="document.getElementById('socialLoginMessage')?.remove()">OK</button></div>`;
+  document.body.appendChild(modal);
 }
 function loginUser(){
   const input=document.getElementById('loginOtp');

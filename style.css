@@ -885,6 +885,45 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 }
 .login-visual::before{ inset:0; }
 
+/* ===== Login: navy backdrop (no white) + social sign-in ===== */
+.login-screen{
+  background:
+    radial-gradient(760px 460px at 6% 0%,rgba(122,148,173,.38),transparent 62%),
+    radial-gradient(640px 420px at 100% 100%,rgba(193,154,78,.26),transparent 60%),
+    linear-gradient(135deg,#1b2638 0%,#27354e 55%,#34476a 100%);
+}
+.login-visual{box-shadow:0 26px 60px rgba(0,0,0,.45)}
+.login-visual::before{inset:-6px}
+.login-box h1{color:#f4eee2}
+.login-box .subtitle{color:#c3cfdd}
+.login-box label{color:#eadfca;font-weight:500}
+.login-box input{height:48px;padding:0 16px;background:rgba(244,238,226,.08);border:1px solid rgba(244,238,226,.28);border-radius:10px;color:#f4eee2}
+.login-box input::placeholder{color:rgba(234,223,202,.55)}
+.login-box input:focus{background:rgba(244,238,226,.12);border-color:#d6b06c;box-shadow:0 0 0 3px rgba(214,176,108,.22)}
+.login-box .field.invalid input{border-color:#ff8a7d;box-shadow:none}
+.login-box .field-error{color:#ff9b8f}
+.login-box .otp-hint{color:#b4c2d3}
+.login-box .primary{height:48px;border-radius:10px;font-weight:600;letter-spacing:.3px;background:linear-gradient(#d6b06c,#c19a4e);color:#1b2638;box-shadow:0 12px 26px rgba(0,0,0,.28)}
+.login-box .primary:not(:disabled):hover{background:linear-gradient(#c16333,#a94819);border-color:#c16333;color:#fff;box-shadow:0 12px 26px rgba(169,72,25,.40)}
+.login-box .divider{color:#b4c2d3;font-size:13px;letter-spacing:.3px;gap:12px;margin:24px 0 16px}
+.login-box .divider:before,.login-box .divider:after{flex:1;width:auto;height:1px;background:rgba(244,238,226,.25)}
+.social-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.social-btn{height:54px;border-radius:10px;border:1px solid rgba(244,238,226,.28);background:rgba(244,238,226,.08);color:#f4eee2;font-size:21px;display:flex;align-items:center;justify-content:center;transition:transform .2s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease}
+.social-btn:hover{background:#c16333;border-color:#c16333;color:#fff;transform:translateY(-3px);box-shadow:0 12px 24px rgba(169,72,25,.40)}
+.social-btn:focus-visible{outline:2px solid #d6b06c;outline-offset:2px}
+.social-row ~ .primary{margin-top:22px;background:transparent;color:#f4eee2;border:1.5px solid rgba(244,238,226,.55);box-shadow:none}
+.login-box .terms{color:#9fb0c4}
+.login-box .terms a{color:#d6b06c}
+.login-box .terms a:hover{color:#f4a46b}
+#socialLoginMessage .link-application-modal-card{background:#f4eee2;border-color:#eadfca;border-radius:12px}
+body .upload-box{border-radius:0 !important}
+
+/* Register / verify pages: lift the card off the background */
+.terminal-auth{position:relative}
+.terminal-auth::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 65% 75% at 50% 50%,rgba(12,20,36,.48) 0%,rgba(12,20,36,.24) 60%,rgba(12,20,36,.12) 100%)}
+.terminal-auth > *{position:relative;z-index:1}
+.terminal-auth .auth-card,.terminal-auth .auth-choice-card,.terminal-auth .registration-card,.terminal-auth .verify-card,.terminal-auth .created-card,.terminal-auth .renewal-continue-card,.terminal-auth .new-application-card{box-shadow:0 40px 90px rgba(8,14,28,.60),0 14px 30px rgba(8,14,28,.40)}
+
 /* Same card corner (top-left round, other 3 sharp) on the create-account cards */
 .auth-card,
 .auth-choice-card,
