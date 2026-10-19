@@ -196,6 +196,11 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
   position:absolute;left:10px;right:10px;bottom:70px;background:#27354e;border-radius:12px;padding:16px 10px;text-align:center;font-size:11px
 }
 .help strong{font-size:12px}
+.top-actions{position:relative}
+.top-actions .user-menu{position:static}
+.top-actions .user-menu-toggle{display:none}
+.top-actions .user-dropdown{top:54px;right:0}
+.profile-avatar{cursor:pointer}
 @media(max-height:620px){.help{display:none}}
 .help button{margin-top:8px;border:1px solid #fff;background:transparent;color:#fff;border-radius:20px;padding:6px 15px}
 .topbar{
