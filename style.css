@@ -871,48 +871,21 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .nav button:not(.active):hover{background:var(--orange);color:#fff}
 .profile-avatar:hover{background:var(--orange);border-color:var(--orange-dark)}
 
-/* ===== New login layout ===== */
-.login-shell{
-  min-height:100vh; display:flex; align-items:center; justify-content:center;
-  padding:32px;
-  background:url("assets/auth-terminal-bg.png") center top/cover no-repeat, linear-gradient(135deg,#27354e,#7a94ad);
+/* ===== Login restyle: form left, framed photo right ===== */
+.login-screen{
+  grid-template-columns:1fr minmax(380px,46%);
+  gap:20px;
+  padding:24px;
+  background:#fff;
 }
-.login-card{
-  display:grid; grid-template-columns:1fr 1fr; gap:24px;
-  width:100%; max-width:1100px; min-height:620px;
-  padding:18px; background:#f4f6fb;
-  box-shadow:0 30px 60px rgba(0,0,0,.25);
+.login-visual{
+  min-height:calc(100vh - 48px);
+  border-radius:20px 0 0 0;
+  box-shadow:0 14px 32px rgba(39,53,78,.30);
 }
-.login-form-side{
-  display:flex; flex-direction:column; justify-content:center;
-  width:100%; max-width:420px; margin:0 auto; padding:30px 48px;
-}
-.login-form-side h1{ text-align:center; color:#27354e; font-size:34px; font-weight:700; margin:0 0 6px; }
-.login-lead{ font-size:13px; font-weight:600; color:#27354e; margin:28px 0 12px; }
-.login-form-side .field input{ height:52px; padding:0 20px; background:#fff; border:0; }
-.login-signin{ margin-top:20px; height:52px; box-shadow:0 12px 24px rgba(39,53,78,.30); }
-.login-or{ display:flex; align-items:center; gap:12px; margin:26px 0 18px; color:#888; font-size:13px; }
-.login-or::before,.login-or::after{ content:""; flex:1; height:1px; background:#d8dbe6; }
-.login-create{ width:100%; height:46px; background:#fff; border:1px solid #27354e; color:#27354e; }
-.login-create:hover{ background:var(--orange); border-color:var(--orange); color:#fff; }
-.login-art{
-  position:relative; overflow:hidden; min-height:520px;
-  background:linear-gradient(180deg,#7d5a78 0%,#f0a982 35%,#f8d896 60%,#b9a6d6 75%,#2f3354 100%);
-}
-.login-sun{
-  position:absolute; left:-40px; top:22%; width:140px; height:140px; border-radius:50%;
-  background:radial-gradient(circle,#fff6d6,#fbe3a0 70%,transparent 72%);
-}
-.login-hills{
-  position:absolute; left:0; right:0; bottom:0; height:38%;
-  background:linear-gradient(180deg,#8f84c4,#2f3354);
-  clip-path:polygon(0 35%,35% 10%,60% 25%,100% 0,100% 100%,0 100%);
-}
-.login-tagline{ position:absolute; left:32px; bottom:60px; margin:0; color:#fff; font-size:22px; line-height:1.3; }
+.login-visual::before{ inset:0; }
 
-/* ONE round corner (top-left), the other 3 sharp: every card in login + create account */
-.login-card,
-.login-art,
+/* Same card corner (top-left round, other 3 sharp) on the create-account cards */
 .auth-card,
 .auth-choice-card,
 .registration-card,
@@ -923,13 +896,8 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .upload-box{
   border-radius:20px 0 0 0 !important;
 }
-.login-signin,
-.login-create,
-.login-form-side .field input{
-  border-radius:0 !important;
-}
 
-@media(max-width:860px){
-  .login-card{ grid-template-columns:1fr; }
-  .login-art{ display:none; }
+@media(max-width:900px){
+  .login-screen{ grid-template-columns:1fr; padding:16px; }
+  .login-visual{ min-height:320px; }
 }
