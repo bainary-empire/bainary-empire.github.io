@@ -166,11 +166,11 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 
 /* Dashboard */
 .dashboard{
-  min-height:100vh;background:linear-gradient(160deg,#f4eee2 0%,#eadfca 100%);display:grid;
+  min-height:100vh;background:var(--page);display:grid;
   grid-template-columns:185px 1fr;grid-template-rows:128px 1fr 49px;
 }
 .sidebar{
-  grid-row:1/4;background:linear-gradient(180deg,#27354e 0%,#212d44 55%,#1b2638 100%);color:#fff;padding:20px 10px;box-shadow:4px 0 24px rgba(39,53,78,.25);
+  grid-row:1/4;background:linear-gradient(180deg,#27354e 0%,#212d44 55%,#1b2638 100%);color:#fff;padding:20px 10px;
   position:relative;
 }
 .sidebar-logo{height:139px;background:transparent;border-radius:0;margin:6px 30px 30px 30px;display:flex;align-items:center;justify-content:center}
@@ -183,9 +183,13 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .nav button:hover{background:rgba(255,255,255,.16);transform:translateX(6px)}
 .nav button{display:flex;align-items:center;gap:12px;position:relative}
 .nav .ni{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.nav button.active{background:rgba(255,255,255,.10);color:#fff;font-weight:600}
-.nav button.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:#d6b06c}
-.nav button.active .ni{color:#d6b06c}
+:root{--page:#f4eee2}
+.nav button.active{background:var(--page);color:#27354e;font-weight:700;margin-right:-10px;padding-right:22px;border-radius:26px 0 0 26px}
+.nav button.active::after{content:"";position:absolute;right:0;bottom:-26px;width:26px;height:26px;pointer-events:none;background:radial-gradient(circle at 0 100%,transparent 26px,var(--page) 26.5px)}
+.content{animation:contentIn .45s ease both}
+@keyframes contentIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+.nav button.active::before{content:"";position:absolute;right:0;top:-26px;width:26px;height:26px;pointer-events:none;background:radial-gradient(circle at 0 0,transparent 26px,var(--page) 26.5px)}
+.nav button.active .ni{color:#27354e}
 .nav button.active:hover{transform:none}
 
 .help{
