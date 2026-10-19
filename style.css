@@ -915,7 +915,14 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .login-box .terms{color:#9fb0c4}
 .login-box .terms a{color:#d6b06c}
 .login-box .terms a:hover{color:#f4a46b}
-#socialLoginMessage .link-application-modal-card{background:#f4eee2;border-color:#eadfca;border-radius:20px 0 0 0}
+#socialLoginMessage .link-application-modal-card{background:#f4eee2;border-color:#eadfca;border-radius:12px}
+body .upload-box{border-radius:0 !important}
+
+/* Register / verify pages: lift the card off the background */
+.terminal-auth{position:relative}
+.terminal-auth::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 65% 75% at 50% 50%,rgba(12,20,36,.48) 0%,rgba(12,20,36,.24) 60%,rgba(12,20,36,.12) 100%)}
+.terminal-auth > *{position:relative;z-index:1}
+.terminal-auth .auth-card,.terminal-auth .auth-choice-card,.terminal-auth .registration-card,.terminal-auth .verify-card,.terminal-auth .created-card,.terminal-auth .renewal-continue-card,.terminal-auth .new-application-card{box-shadow:0 40px 90px rgba(8,14,28,.60),0 14px 30px rgba(8,14,28,.40)}
 
 /* Same card corner (top-left round, other 3 sharp) on the create-account cards */
 .auth-card,
