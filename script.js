@@ -120,7 +120,7 @@ function buildTimeline(status){
 
 
 function uploadIcon(){
- return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#2f75a8" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#2f75a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+ return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function authBrand(){
@@ -1776,6 +1776,19 @@ function completeRegistrationVerification(){
   go('created');
 }
 function startLogin(){
+  const email=document.getElementById('loginEmail');
+  email?.closest('.field')?.querySelector('.field-error')?.remove();
+  if(!email || !email.value.trim()){ showFieldError(email,'Please enter your email address.'); return; }
+  if(!isValidEmailAddress(email.value)){ showFieldError(email,'Please enter a valid email address.'); return; }
+  const normalized=normalizeAccountEmail(email.value);
+  email.closest('.field')?.classList.remove('invalid');
+  sessionStorage.setItem('baiPendingLoginEmail',normalized);
+  sessionStorage.setItem('baiLoginOtpSent','false');
+  sessionStorage.removeItem('baiLoginOtp');
+  sessionStorage.removeItem('baiLoginOtpSentAt');
+  go('login-verify');
+}
+function startLoginOld(){
 //  const email=document.getElementById('loginEmail');
 //  email?.closest('.field')?.querySelector('.field-error')?.remove();
 //  if(!email || !email.value.trim()){ showFieldError(email,'Please enter your email address.'); return; }
@@ -1811,6 +1824,19 @@ function startLogin(){
   go('login-verify');
 }
 function loginUser(){
+  const input=document.getElementById('loginOtp');
+  if(!validateOtp('loginOtp')) return;
+  const email=sessionStorage.getItem('baiPendingLoginEmail')||'';
+  if(!isValidEmailAddress(email)){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
+  sessionStorage.setItem('baiAccountEmail',email);
+  sessionStorage.setItem('baiLoggedIn','true');
+  sessionStorage.removeItem('baiLoginOtpSent');
+  sessionStorage.removeItem('baiLoginOtp');
+  sessionStorage.removeItem('baiLoginOtpSentAt');
+  clearPendingLoginData();
+  go('dashboard');
+}
+function loginUserOld(){
   //const input=document.getElementById('loginOtp');
   //if(!validateOtp('loginOtp')) return;
   //const pending=v62PendingLogin();
