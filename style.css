@@ -186,8 +186,8 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 :root{--page:#f4eee2}
 .nav button.active{background:var(--page);color:#27354e;font-weight:700;margin-right:-10px;padding-right:22px;border-radius:26px 0 0 26px}
 .nav button.active::after{content:"";position:absolute;right:0;bottom:-26px;width:26px;height:26px;pointer-events:none;background:radial-gradient(circle at 0 100%,transparent 26px,var(--page) 26.5px)}
-.content{animation:contentIn .45s ease both}
-@keyframes contentIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+
+
 .nav button.active::before{content:"";position:absolute;right:0;top:-26px;width:26px;height:26px;pointer-events:none;background:radial-gradient(circle at 0 0,transparent 26px,var(--page) 26.5px)}
 .nav button.active .ni{color:#27354e}
 .nav button.active:hover{transform:none}
