@@ -1648,6 +1648,7 @@ function render(){
     return;
   }
   app.innerHTML=(pages[page]||login)();
+  document.querySelectorAll('.profile-avatar').forEach(el=>{el.setAttribute('role','button');el.setAttribute('tabindex','0');el.onclick=toggleUserMenu;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleUserMenu(e);}};});
   (function(){const a=document.querySelector('.nav button.active');if(!a)return;const prev=parseFloat(sessionStorage.getItem('baiNavTop')||'');const cur=a.offsetTop;sessionStorage.setItem('baiNavTop',String(cur));if(!isNaN(prev)&&prev!==cur&&a.animate){a.animate([{transform:'translateY('+(prev-cur)+'px)'},{transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.4,0,.2,1)'});}})();
   if(page==='adult-register'||page==='minor-register') wireCreateAccountValidation();
   if(page==='renewal-form'||page==='replacement-form') wireUploadInputs(document.querySelector('.renewal-card'));

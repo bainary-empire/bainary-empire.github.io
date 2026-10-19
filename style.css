@@ -196,6 +196,11 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
   position:absolute;left:10px;right:10px;bottom:70px;background:#27354e;border-radius:12px;padding:16px 10px;text-align:center;font-size:11px
 }
 .help strong{font-size:12px}
+.top-actions{position:relative}
+.top-actions .user-menu{position:static}
+.top-actions .user-menu-toggle{display:none}
+.top-actions .user-dropdown{top:54px;right:0}
+.profile-avatar{cursor:pointer}
 @media(max-height:620px){.help{display:none}}
 .help button{margin-top:8px;border:1px solid #fff;background:transparent;color:#fff;border-radius:20px;padding:6px 15px}
 .topbar{
@@ -850,3 +855,16 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .link-application-modal-card h3{margin:0 0 8px;color:#27354e;font-size:20px}
 .link-application-modal-card p{margin:0 0 18px;color:#66757f;font-size:12px;line-height:1.55}
 .link-application-modal-card .primary{width:auto;min-width:82px;margin:0 auto}
+
+/* Orange hover for every pressable button */
+:root{--orange:#c16333;--orange-dark:#a94819;--orange-tint:#fff1e8}
+button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advisory-card,.enquiry-card,.upload-box,.profile-avatar,a{transition:background .2s ease,color .2s ease,border-color .2s ease,box-shadow .2s ease}
+.primary:not(:disabled):hover{background:linear-gradient(var(--orange),var(--orange-dark));filter:none;color:#fff}
+.secondary-action:hover,.back-btn:hover,.suggested-prompts button:hover,.ai-feedback button:hover,.escalate-btn:hover,.attachment-view-btn:hover,.selected-enquiry-file button:hover,.help button:hover{background:var(--orange);border-color:var(--orange);color:#fff;text-decoration:none}
+.link-btn:hover,.resend-btn:not(:disabled):hover,.notification-text-action:not(:disabled):hover,.notification-clear-action:not(:disabled):hover,.source-link:hover,.eye:hover,.notification-btn:hover,a:hover{color:var(--orange)}
+.category-card:hover,.article-card:hover,.advisory-card:hover,.enquiry-card:hover,.upload-box:hover{border-color:var(--orange);background:var(--orange-tint)}
+.settings-action:hover,.user-dropdown button:hover,.notification-item:hover{background:var(--orange-tint);color:var(--orange-dark)}
+.user-dropdown .logout:hover{color:#b33a3a}
+.settings-action.danger:hover{background:#fbeaea}
+.nav button:not(.active):hover{background:var(--orange);color:#fff}
+.profile-avatar:hover{background:var(--orange);border-color:var(--orange-dark)}
