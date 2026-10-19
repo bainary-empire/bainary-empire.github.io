@@ -166,7 +166,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 
 /* Dashboard */
 .dashboard{
-  min-height:100vh;background:var(--page);display:grid;
+  height:100vh;height:100dvh;overflow:hidden;background:var(--page);display:grid;
   grid-template-columns:185px 1fr;grid-template-rows:128px 1fr 49px;
 }
 .sidebar{
@@ -196,6 +196,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
   position:absolute;left:10px;right:10px;bottom:70px;background:#27354e;border-radius:12px;padding:16px 10px;text-align:center;font-size:11px
 }
 .help strong{font-size:12px}
+@media(max-height:620px){.help{display:none}}
 .help button{margin-top:8px;border:1px solid #fff;background:transparent;color:#fff;border-radius:20px;padding:6px 15px}
 .topbar{
   grid-column:2;display:flex;align-items:center;justify-content:space-between;
@@ -206,7 +207,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .top-actions{display:flex;align-items:center;gap:22px;color:#27354e}
 .bell{font-size:27px;position:relative}.badge{position:absolute;top:-5px;right:-7px;background:#c19a4e;color:#fff;border-radius:50%;font-size:10px;padding:2px 5px}
 .avatar{width:43px;height:43px;border-radius:50%;background:#27354e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px}
-.content{grid-column:2;padding:20px 25px 10px}
+.content{grid-column:2;padding:20px 25px 10px;min-height:0;overflow-y:auto;scrollbar-width:thin}
 .hero{
   height:142px;border-radius:20px 0 0 0;overflow:hidden;
   background:linear-gradient(90deg,#27354e 0%,#27354e 34%,rgba(39,53,78,.5)),url("assets/dashboard-banner.jpg") center/cover;
