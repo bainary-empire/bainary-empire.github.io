@@ -166,11 +166,11 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 
 /* Dashboard */
 .dashboard{
-  min-height:100vh;background:linear-gradient(160deg,#f4eee2 0%,#eadfca 100%);display:grid;
+  min-height:100vh;background:var(--page);display:grid;
   grid-template-columns:185px 1fr;grid-template-rows:128px 1fr 49px;
 }
 .sidebar{
-  grid-row:1/4;background:linear-gradient(180deg,#27354e 0%,#212d44 55%,#1b2638 100%);color:#fff;padding:20px 10px;box-shadow:4px 0 24px rgba(39,53,78,.25);
+  grid-row:1/4;background:linear-gradient(180deg,#27354e 0%,#212d44 55%,#1b2638 100%);color:#fff;padding:20px 10px;
   position:relative;
 }
 .sidebar-logo{height:139px;background:transparent;border-radius:0;margin:6px 30px 30px 30px;display:flex;align-items:center;justify-content:center}
@@ -183,9 +183,13 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .nav button:hover{background:rgba(255,255,255,.16);transform:translateX(6px)}
 .nav button{display:flex;align-items:center;gap:12px;position:relative}
 .nav .ni{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.nav button.active{background:rgba(255,255,255,.10);color:#fff;font-weight:600}
-.nav button.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:#d6b06c}
-.nav button.active .ni{color:#d6b06c}
+:root{--page:#f4eee2}
+.nav button.active{background:var(--page);color:#27354e;font-weight:700;margin-right:-10px;padding-right:22px;border-radius:26px 0 0 26px}
+.nav button.active::after{content:"";position:absolute;right:0;bottom:-26px;width:26px;height:26px;pointer-events:none;background:radial-gradient(circle at 0 100%,transparent 26px,var(--page) 26.5px)}
+.content{animation:contentIn .45s ease both}
+@keyframes contentIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+.nav button.active::before{content:"";position:absolute;right:0;top:-26px;width:26px;height:26px;pointer-events:none;background:radial-gradient(circle at 0 0,transparent 26px,var(--page) 26.5px)}
+.nav button.active .ni{color:#27354e}
 .nav button.active:hover{transform:none}
 
 .help{
@@ -204,7 +208,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .avatar{width:43px;height:43px;border-radius:50%;background:#27354e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px}
 .content{grid-column:2;padding:20px 25px 10px}
 .hero{
-  height:142px;border-radius:20px;overflow:hidden;
+  height:142px;border-radius:20px 0 0 0;overflow:hidden;
   background:linear-gradient(90deg,#27354e 0%,#27354e 34%,rgba(39,53,78,.5)),url("assets/dashboard-banner.jpg") center/cover;
   padding:20px;color:#fff
 }
@@ -213,7 +217,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .hero::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-20deg);animation:heroShine 5s ease-in-out infinite;pointer-events:none}
 @keyframes heroShine{0%,60%{left:-60%}100%{left:130%}}
 .cards{display:grid;grid-template-columns:1fr 395px;gap:20px;margin-top:20px}
-.panel{background:#fff;border:7px solid #f0f0ef;border-radius:20px;padding:10px 14px;box-shadow:0 4px 18px rgba(39,53,78,.08);transition:transform .25s ease,box-shadow .25s ease}
+.panel{background:#fff;border:0;border-radius:20px 0 0 0;padding:17px 21px;box-shadow:0 4px 18px rgba(39,53,78,.08);transition:transform .25s ease,box-shadow .25s ease}
 .panel:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(39,53,78,.18)}
 .cards .panel{animation:fadeUp .6s ease both}
 .cards .panel:nth-child(2){animation-delay:.15s}
@@ -230,7 +234,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 .footer{grid-column:2;border-top:3px solid #ddd;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:0 25px;color:#aaa;font-size:10px}
 
 /* Profile/placeholder pages */
-.page-panel{background:#fff;border-radius:16px;padding:30px;min-height:500px}
+.page-panel{background:#fff;border-radius:20px 0 0 0;padding:30px;min-height:500px}
 .page-panel h2{color:#27354e;margin-top:0}
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}
 .stat{border:1px solid #ddd;border-radius:10px;padding:18px}.stat b{display:block;color:#27354e;font-size:22px}
