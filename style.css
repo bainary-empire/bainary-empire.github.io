@@ -870,3 +870,34 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .settings-action.danger:hover{background:#fbeaea}
 .nav button:not(.active):hover{background:var(--orange);color:#fff}
 .profile-avatar:hover{background:var(--orange);border-color:var(--orange-dark)}
+
+/* ===== Login restyle: form left, framed photo right ===== */
+.login-screen{
+  grid-template-columns:1fr minmax(380px,46%);
+  gap:20px;
+  padding:24px;
+  background:#fff;
+}
+.login-visual{
+  min-height:calc(100vh - 48px);
+  border-radius:20px 0 0 0;
+  box-shadow:0 14px 32px rgba(39,53,78,.30);
+}
+.login-visual::before{ inset:0; }
+
+/* Same card corner (top-left round, other 3 sharp) on the create-account cards */
+.auth-card,
+.auth-choice-card,
+.registration-card,
+.verify-card,
+.created-card,
+.renewal-continue-card,
+.new-application-card,
+.upload-box{
+  border-radius:20px 0 0 0 !important;
+}
+
+@media(max-width:900px){
+  .login-screen{ grid-template-columns:1fr; padding:16px; }
+  .login-visual{ min-height:320px; }
+}

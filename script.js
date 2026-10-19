@@ -1115,7 +1115,7 @@ function wireEnquiryLiveValidation(){
 /* Login stays focused on authentication; support is accessed from the member Help Center. */
 function login(){
  return `<div class="login-screen">
-   <section class="login-visual" aria-label="BAI Passport Tracking System"></section>
+
    <section class="login-panel"><div class="login-box">
      <h1>LOG IN TO MYBAI</h1><p class="subtitle">Enter your email address to access your account</p>
      <div class="field"><label>Email Address</label><input id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="Enter your email address" oninput="validateLoginEmailInput(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();startLogin();}"></div>
@@ -1125,6 +1125,7 @@ function login(){
      <button class="primary" onclick="go('signup')">Create Account</button>
      <div class="terms">By signing in, you agree to our <a href="#" onclick="return false">Terms of Use</a> and <a href="#" onclick="return false">Privacy Policy</a>.</div>
    </div></section>
+   <section class="login-visual" aria-label="BAI Passport Tracking System"></section>
  </div>`;
 }
 
