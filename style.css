@@ -97,11 +97,13 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
   /* The supplied login screenshot already contains the correct logo, text,
      background image, and dark overlay. Use it as one complete visual panel
      instead of layering those elements a second time. */
-  background:url("assets/login-left-bg.jpg") center center/cover no-repeat;
+  background:none;overflow:hidden;
   position:relative;
   min-height:100vh;
 }
 .login-copy{display:none}
+.login-visual::before{content:"";position:absolute;inset:-8px;background:url("assets/login-left-bg.jpg") center center/cover no-repeat}
+@media(max-width:900px){.login-visual::before{background-position:center top}}
 .login-logo{display:none}
 .login-panel{display:flex;align-items:center;justify-content:center;padding:40px}
 .login-box{width:min(450px,100%)}
