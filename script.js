@@ -164,8 +164,10 @@ function signup(){
    <div class="choice-icon"><img src="assets/passport-icon.png" alt="Passport"></div>
    <h1 class="auth-heading">CREATE YOUR MYBAI ACCOUNT</h1>
    <p class="auth-sub">Please select the age group of the person being registered<br>to view the appropriate registration requirements.</p>
-   <button class="primary" onclick="go('adult-register')">I am registering an Adult</button>
-   <button class="primary" style="margin-top:20px" onclick="go('minor-register')">I am registering a Little Gremlin</button>
+   <div class="choice-tiles">
+     <button type="button" class="choice-tile" onclick="go('adult-register')"><svg class="choice-svg" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="14" r="8"/><path d="M19 58V36a13 13 0 0 1 26 0v22"/><path d="M32 46v12"/></svg><span>I am registering an Adult</span></button>
+   <button type="button" class="choice-tile" onclick="go('minor-register')"><svg class="choice-svg" viewBox="0 0 64 64" aria-hidden="true"><circle cx="25" cy="30" r="6.5"/><path d="M15 58V46a10 10 0 0 1 20 0v12"/><path d="M25 52v6"/><circle cx="47" cy="15" r="8"/><path d="M47 23c0 9-6 16-12 22"/></svg><span>I am registering a Little Gremlin</span></button>
+   </div>
    <p class="choice-note">If you are a Minor, please seek out your Parent or<br>Guardian for Help</p>
  </div></div>`;
 }
