@@ -869,6 +869,10 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .user-dropdown .logout:hover{color:#b33a3a}
 .settings-action.danger:hover{background:#fbeaea}
 .nav button:not(.active):hover{background:var(--orange);color:#fff}
+.nav button:not(.active){border-radius:999px;margin-right:16px;transition:transform .2s ease,background .25s ease,color .25s ease,box-shadow .25s ease}
+.nav button:not(.active):hover{transform:none;box-shadow:0 6px 16px rgba(169,72,25,.35)}
+.nav button:not(.active){border-radius:999px;margin-right:16px;transition:transform .2s ease,background .25s ease,color .25s ease,box-shadow .25s ease}
+.nav button:not(.active):hover{transform:none;box-shadow:0 6px 16px rgba(169,72,25,.35)}
 .profile-avatar:hover{background:var(--orange);border-color:var(--orange-dark)}
 
 /* ===== Login restyle: form left, framed photo right ===== */
@@ -936,6 +940,7 @@ body .upload-box{border-radius:0 !important}
 .choice-tile:focus-visible{outline:3px solid #d6b06c;outline-offset:3px}
 .tile-icon{font-size:76px;color:#d6b06c;transition:color .2s ease}
 .choice-tile:hover .tile-icon{color:#fff}
+.profile-label{display:none !important}
 
 /* ===== Glassmorphism: signup + registration cards ===== */
 body .terminal-auth .auth-choice-card,

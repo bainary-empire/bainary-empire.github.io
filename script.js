@@ -1846,7 +1846,7 @@ function socialLogin(provider){
 /* ===== DEMO SHORTCUT: the X button skips sign-in and opens the User landing page ===== */
 function demoLogin(){
   sessionStorage.setItem('baiAccountEmail','demo.user@bai.com');
-  sessionStorage.setItem('baiAccountName','Juan Dela Cruz');
+  sessionStorage.setItem('baiAccountName','MyBAI User');
   sessionStorage.setItem('baiLoggedIn','true');
   go('dashboard');
 }
@@ -1856,6 +1856,7 @@ function loginUser(){
   const email=sessionStorage.getItem('baiPendingLoginEmail')||'';
   if(!isValidEmailAddress(email)){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
   sessionStorage.setItem('baiAccountEmail',email);
+  sessionStorage.setItem('baiAccountName','MyBAI User');
   sessionStorage.setItem('baiLoggedIn','true');
   sessionStorage.removeItem('baiLoginOtpSent');
   sessionStorage.removeItem('baiLoginOtp');
