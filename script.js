@@ -164,8 +164,10 @@ function signup(){
    <div class="choice-icon"><img src="assets/passport-icon.png" alt="Passport"></div>
    <h1 class="auth-heading">CREATE YOUR MYBAI ACCOUNT</h1>
    <p class="auth-sub">Please select the age group of the person being registered<br>to view the appropriate registration requirements.</p>
-   <button class="primary" onclick="go('adult-register')">I am registering an Adult</button>
-   <button class="primary" style="margin-top:20px" onclick="go('minor-register')">I am registering a Little Gremlin</button>
+   <div class="choice-tiles">
+     <button type="button" class="choice-tile" onclick="go('adult-register')"><i class="fa-solid fa-user tile-icon" aria-hidden="true"></i><span>I am registering an Adult</span></button>
+   <button type="button" class="choice-tile" onclick="go('minor-register')"><i class="fa-solid fa-children tile-icon" aria-hidden="true"></i><span>I am registering a Little Gremlin</span></button>
+   </div>
    <p class="choice-note">If you are a Minor, please seek out your Parent or<br>Guardian for Help</p>
  </div></div>`;
 }
