@@ -226,7 +226,7 @@ input:focus,select:focus,textarea:focus{border-color:#27354e;box-shadow:0 0 0 2p
 @keyframes heroShine{0%,60%{left:-60%}100%{left:130%}}
 .cards{display:grid;grid-template-columns:1fr 395px;gap:20px;margin-top:20px}
 .panel{background:#fff;border:0;border-radius:20px 0 0 0;padding:17px 21px;box-shadow:0 4px 18px rgba(39,53,78,.08);transition:transform .25s ease,box-shadow .25s ease}
-.panel:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(39,53,78,.18)}
+.panel:hover{transform:none}
 .cards .panel{animation:fadeUp .6s ease both}
 .cards .panel:nth-child(2){animation-delay:.15s}
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -899,6 +899,26 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .login-visual{box-shadow:0 26px 60px rgba(0,0,0,.45)}
 .login-visual::before{inset:-6px}
 .login-box h1{color:#f4eee2}
+
+/* ===== Aeromove display font for big headings ===== */
+@font-face{font-family:"Aeromove";src:url("assets/fonts/aeromove.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap;unicode-range:U+0020,U+0030-0039,U+0041-005A,U+0061-007A}
+.login-box h1,
+.welcome,
+.hero h2,
+.panel h3,
+.page-panel h2,
+.auth-heading,
+.form-title-row h1,
+.message-screen h1{font-family:"Aeromove",Poppins,Arial,sans-serif;font-weight:400;font-synthesis:none;letter-spacing:1px}
+.welcome{font-size:38px}
+@media(max-width:900px){.welcome{font-size:24px}}
+@media(max-width:600px){.welcome{font-size:18px}}
+.welcome small{font-family:Poppins,Arial,sans-serif;letter-spacing:0}
+.login-box h1{font-size:50px;line-height:1.1}
+@media(max-width:600px){.login-box h1{font-size:34px}}
+.form-title-row h1{font-size:20px}
+.hero h2{font-size:38px}
+@media(max-width:700px){.hero h2{font-size:24px}}
 .login-box .subtitle{color:#c3cfdd}
 .login-box label{color:#eadfca;font-weight:500}
 .login-box input{height:48px;padding:0 16px;background:rgba(244,238,226,.08);border:1px solid rgba(244,238,226,.28);border-radius:10px;color:#f4eee2}
