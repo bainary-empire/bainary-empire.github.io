@@ -1127,7 +1127,7 @@ function login(){
      <div class="social-row">
        <button type="button" class="social-btn" onclick="socialLogin('google')" aria-label="Sign in with Google" title="Google"><i class="fa-brands fa-google"></i></button>
        <button type="button" class="social-btn" onclick="socialLogin('facebook')" aria-label="Sign in with Facebook" title="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
-       <button type="button" class="social-btn" onclick="socialLogin('x')" aria-label="Sign in with X" title="X"><i class="fa-brands fa-x-twitter"></i></button>
+       <button type="button" class="social-btn" onclick="demoLogin()" aria-label="Sign in with X" title="X"><i class="fa-brands fa-x-twitter"></i></button>
      </div>
      <button class="primary" onclick="go('signup')">Create Account</button>
      <div class="terms">By signing in, you agree to our <a href="#" onclick="return false">Terms of Use</a> and <a href="#" onclick="return false">Privacy Policy</a>.</div>
@@ -1843,12 +1843,20 @@ function socialLogin(provider){
   modal.innerHTML=`<div class="link-application-modal-card" role="dialog" aria-modal="true" aria-labelledby="socialLoginTitle"><h3 id="socialLoginTitle">Sign in with ${name}</h3><p>${name} sign-in is not connected to this prototype yet. Please sign in with your email address instead.</p><button type="button" class="primary" onclick="document.getElementById('socialLoginMessage')?.remove()">OK</button></div>`;
   document.body.appendChild(modal);
 }
+/* ===== DEMO SHORTCUT: the X button skips sign-in and opens the User landing page ===== */
+function demoLogin(){
+  sessionStorage.setItem('baiAccountEmail','demo.user@bai.com');
+  sessionStorage.setItem('baiAccountName','MyBAI User');
+  sessionStorage.setItem('baiLoggedIn','true');
+  go('dashboard');
+}
 function loginUser(){
   const input=document.getElementById('loginOtp');
   if(!validateOtp('loginOtp')) return;
   const email=sessionStorage.getItem('baiPendingLoginEmail')||'';
   if(!isValidEmailAddress(email)){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
   sessionStorage.setItem('baiAccountEmail',email);
+  sessionStorage.setItem('baiAccountName','MyBAI User');
   sessionStorage.setItem('baiLoggedIn','true');
   sessionStorage.removeItem('baiLoginOtpSent');
   sessionStorage.removeItem('baiLoginOtp');
