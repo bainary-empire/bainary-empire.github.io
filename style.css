@@ -937,14 +937,15 @@ body .upload-box{border-radius:0 !important}
 /* ===== Glassmorphism: signup + registration cards ===== */
 body .terminal-auth .auth-choice-card,
 body .terminal-auth > .registration-card:not(.renewal-card){
-  background:linear-gradient(145deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,.07) 100%),rgba(20,32,52,.38);
-  -webkit-backdrop-filter:blur(22px) saturate(150%);
-  backdrop-filter:blur(22px) saturate(150%);
+  background:linear-gradient(145deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.02) 100%),rgba(20,32,52,.12);
+  -webkit-backdrop-filter:blur(12px) saturate(160%);
+  backdrop-filter:blur(12px) saturate(160%);
   border:1px solid rgba(255,255,255,.28);
   border-top-color:rgba(255,255,255,.55);
   border-left-color:rgba(255,255,255,.45);
   box-shadow:0 30px 80px rgba(8,14,28,.45),inset 0 1px 0 rgba(255,255,255,.35);
   color:#f4eee2;
+  text-shadow:0 1px 4px rgba(8,14,28,.55);
 }
 body .terminal-auth .auth-choice-card .auth-heading,
 body .terminal-auth .form-title-row h1{color:#f4eee2}
