@@ -931,6 +931,48 @@ body .upload-box{border-radius:0 !important}
 .choice-tile:hover{background:linear-gradient(160deg,#c16333,#a94819);transform:translateY(-4px);box-shadow:0 18px 32px rgba(169,72,25,.38)}
 .choice-tile:hover .choice-svg{stroke:#fff}
 .choice-tile:focus-visible{outline:3px solid #d6b06c;outline-offset:3px}
+.tile-icon{font-size:76px;color:#d6b06c;transition:color .2s ease}
+.choice-tile:hover .tile-icon{color:#fff}
+
+/* ===== Glassmorphism: signup + registration cards ===== */
+body .terminal-auth .auth-choice-card,
+body .terminal-auth > .registration-card:not(.renewal-card){
+  background:linear-gradient(145deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,.07) 100%),rgba(20,32,52,.38);
+  -webkit-backdrop-filter:blur(22px) saturate(150%);
+  backdrop-filter:blur(22px) saturate(150%);
+  border:1px solid rgba(255,255,255,.28);
+  border-top-color:rgba(255,255,255,.55);
+  border-left-color:rgba(255,255,255,.45);
+  box-shadow:0 30px 80px rgba(8,14,28,.45),inset 0 1px 0 rgba(255,255,255,.35);
+  color:#f4eee2;
+}
+body .terminal-auth .auth-choice-card .auth-heading,
+body .terminal-auth .form-title-row h1{color:#f4eee2}
+body .terminal-auth .auth-choice-card .auth-sub,
+body .terminal-auth .form-title-row p,
+body .terminal-auth .upload-note,
+body .terminal-auth .agreement,
+body .terminal-auth .agreement-note,
+body .terminal-auth .registration-card label{color:rgba(244,238,226,.82)}
+body .terminal-auth .auth-choice-card > p:last-child{color:rgba(244,238,226,.82)}
+body .terminal-auth .id-match-note{background:rgba(255,255,255,.10);border-left-color:#d6b06c;color:rgba(244,238,226,.9)}
+body .terminal-auth .registration-card input,
+body .terminal-auth .registration-card select{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#fff;color-scheme:dark}
+body .terminal-auth .registration-card input::placeholder{color:rgba(244,238,226,.55)}
+body .terminal-auth .registration-card select option{color:#1b2638;background:#f4eee2}
+body .terminal-auth .registration-card input:focus,
+body .terminal-auth .registration-card select:focus{outline:0;border-color:#d6b06c;box-shadow:0 0 0 3px rgba(214,176,108,.25)}
+body .terminal-auth .upload-box{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.5);color:#f4eee2}
+body .terminal-auth .upload-box .upload-icon{color:#d6b06c}
+body .terminal-auth .upload-box:hover{background:rgba(193,99,51,.30);border-color:#d6b06c}
+body .terminal-auth .upload-box.has-file{background:rgba(214,176,108,.22);border-color:#d6b06c}
+body .terminal-auth .registration-card .primary{background:linear-gradient(135deg,#d6b06c,#c19a4e);color:#1b2638;font-weight:600;border:0}
+body .terminal-auth .registration-card .primary:hover{background:linear-gradient(135deg,#c16333,#a94819);color:#fff;filter:none}
+body .terminal-auth .auth-back{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);color:#f4eee2}
+body .terminal-auth .auth-back:hover{background:rgba(193,99,51,.85);border-color:transparent;color:#fff}
+body .terminal-auth .choice-tile{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);box-shadow:0 14px 28px rgba(8,14,28,.25),inset 0 1px 0 rgba(255,255,255,.3);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+body .terminal-auth .choice-tile:hover{background:linear-gradient(160deg,rgba(193,99,51,.92),rgba(169,72,25,.92));border-color:transparent}
+body .terminal-auth .agreement input{accent-color:#d6b06c;color-scheme:light;background:#fff}
 
 /* ===== Create account forms: wide panel on the right (about 66% of the screen) ===== */
 .terminal-auth > .registration-card:not(.renewal-card){
@@ -956,7 +998,7 @@ body .upload-box{border-radius:0 !important}
   .terminal-auth .auth-choice-card{padding:34px 14px 22px}
   .choice-tiles{gap:12px}
   .choice-tile{padding:10px;font-size:13px;gap:10px}
-  .choice-svg{width:56px;height:56px}
+  .tile-icon{font-size:48px}
 }
 .terminal-auth .auth-card,.terminal-auth .auth-choice-card,.terminal-auth .registration-card,.terminal-auth .verify-card,.terminal-auth .created-card,.terminal-auth .renewal-continue-card,.terminal-auth .new-application-card{box-shadow:0 40px 90px rgba(8,14,28,.60),0 14px 30px rgba(8,14,28,.40)}
 
