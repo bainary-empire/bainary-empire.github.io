@@ -915,7 +915,10 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .login-box .terms{color:#9fb0c4}
 .login-box .terms a{color:#d6b06c}
 .login-box .terms a:hover{color:#f4a46b}
-#socialLoginMessage .link-application-modal-card{background:#f4eee2;border-color:#eadfca;border-radius:12px}
+#socialLoginMessage .link-application-modal-card{width:min(340px,calc(100vw - 40px));background:#f4eee2;border-color:#eadfca;border-radius:32px;padding:38px 30px 32px;box-shadow:0 30px 70px rgba(8,14,28,.45)}
+#socialLoginMessage .link-application-modal-card h3{font-size:22px;margin-bottom:12px}
+#socialLoginMessage .link-application-modal-card p{font-size:13px;margin-bottom:24px}
+#socialLoginMessage .link-application-modal-card .primary{border-radius:999px;min-width:120px;height:42px}
 body .upload-box{border-radius:0 !important}
 
 /* Register / verify pages: lift the card off the background */
