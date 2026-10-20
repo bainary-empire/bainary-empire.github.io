@@ -1119,7 +1119,7 @@ function login(){
  return `<div class="login-screen">
 
    <section class="login-panel"><div class="login-box">
-     <h1>LOG IN TO <span class="aero">MYBAI</span></h1><p class="subtitle">Enter your email address to access your account</p>
+     <h1 class="aero">LOG IN TO MYBAI</h1><p class="subtitle">Enter your email address to access your account</p>
      <div class="field"><label>Email Address</label><input id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="Enter your email address" oninput="validateLoginEmailInput(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();startLogin();}"></div>
      <p class="otp-hint">A One-Time Password (OTP) will be sent to the email address<br>associated with your MyBAI account.</p>
      <div class="auth-actions"><button class="primary" onclick="startLogin()">Sign in</button></div>
