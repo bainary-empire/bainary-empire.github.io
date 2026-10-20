@@ -900,6 +900,14 @@ button,.back-btn,.link-btn,.secondary-action,.category-card,.article-card,.advis
 .login-visual::before{inset:-6px}
 .login-box h1{color:#f4eee2}
 
+/* ===== Registration errors: one summary line, no layout jump ===== */
+body .terminal-auth .registration-card .field-error{display:none}
+.form-error-summary{position:absolute;top:34px;left:120px;right:30px;color:#ffb4a8;font-size:14px;font-weight:600;line-height:1.3;text-shadow:0 1px 3px rgba(8,14,28,.7)}
+body .terminal-auth .registration-card .field.invalid input,
+body .terminal-auth .registration-card .field.invalid select{border-color:#ff8a7d;box-shadow:0 0 0 2px rgba(255,138,125,.25)}
+body .terminal-auth .upload-box.upload-invalid{border-color:#ff8a7d;background:rgba(255,138,125,.14)}
+body .terminal-auth .agreement.invalid{color:#ffb4a8}
+
 /* ===== Aeromove accent font for highlighted words ===== */
 @font-face{font-family:"Aeromove";src:url("assets/fonts/aeromove.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap;unicode-range:U+0020,U+0030-0039,U+0041-005A,U+0061-007A}
 .aero{font-family:"Aeromove",Poppins,Arial,sans-serif;font-weight:400;font-synthesis:none;letter-spacing:1px;font-size:1.08em}

@@ -1369,6 +1369,21 @@ function minorRegister(){
    <p class="agreement-note">By Creating an Account, you agree to the Bisaya Airlines<br>International’s Terms of Agreement, and Burgers</p>
  </div></div>`;
 }
+function showFormSummary(form,valid){
+  if(!form) return;
+  form.querySelector('.form-error-summary')?.remove();
+  if(valid) return;
+  const errs=Array.from(form.querySelectorAll('.field-error'));
+  const text=errs.length===1?errs[0].textContent:'Please complete all highlighted fields.';
+  const el=document.createElement('div');
+  el.className='form-error-summary';
+  el.setAttribute('role','alert');
+  el.textContent=text;
+  form.appendChild(el);
+  const hide=()=>el.remove();
+  form.addEventListener('input',hide,{once:true});
+  form.addEventListener('change',hide,{once:true});
+}
 function validateCreateAccount(type){
   const form=document.querySelector('.registration-card'); clearFormErrors(form);
   const fields=type==='adult' ? [['adultFirstName','Please enter your first name.'],['adultLastName','Please enter your last name.'],['adultGender','Please select your gender.'],['adultDob','Please enter your date of birth.'],['adultCivil','Please select your civil status.'],['adultEmail','Please enter your email address.']] : [['minorFirstName','Please enter your first name.'],['minorLastName','Please enter your last name.'],['minorGender','Please select your gender.'],['minorDob','Please enter your date of birth.'],['minorEmail','Please enter your email address.'],['guardianEmail','Please enter the guardian email address.']];
@@ -1386,7 +1401,7 @@ function validateCreateAccount(type){
   if(dob?.value){ const age=calculateAge(dob.value); if(age===null || age<0){ showFieldError(dob,'Please enter a valid date of birth.'); valid=false; } else if(type==='adult' && age<18){ showFieldError(dob,'Adult registration is for users 18 years old or older.'); valid=false; } else if(type==='minor' && age>=18){ showFieldError(dob,'Minor registration is for users under 18 years old.'); valid=false; } }
   const uploadIds=type==='adult'?[['adultPhoto','Please upload a recent photo.'],['adultGovernmentId','Please upload a valid government ID.']]:[['minorPhoto','Please upload a recent photo.'],['minorSchoolId','Please upload your school ID.'],['minorAffiliationId','Please upload proof of affiliation.']];
   uploadIds.forEach(([id,msg])=>{ if(!validateUpload(id,msg)) valid=false; });
-  const agreements=form?Array.from(form.querySelectorAll('.agreement input[type="checkbox"]')):[]; agreements.forEach(cb=>{ if(!cb.checked){ showAgreementError(cb,'Please accept this to continue.'); valid=false; } });
+  const agreements=form?Array.from(form.querySelectorAll('.agreement input[type="checkbox"]')):[]; agreements.forEach(cb=>{ if(!cb.checked){ showAgreementError(cb,'Please accept this to continue.'); valid=false; } }); showFormSummary(form,valid);
   return valid;
 }
 function registrationDraftKey(type){ return type==='adult'?'baiAdultDraft':'baiMinorDraft'; }
