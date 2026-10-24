@@ -95,29 +95,54 @@ function validateUpload(id,message){
 }
 function clearUploadError(id){ const input=document.getElementById(id); const host=input?.closest('.upload-box'); host?.classList.remove('upload-invalid'); host?.querySelector('.field-error')?.remove(); }
 function statusLabel(status){
- const s=String(status||'').toUpperCase();
- if(s==='SUBMITTED') return 'SUBMITTED';
+ const s=String(status||'').trim().toUpperCase().replace(/[_-]+/g,' ');
+ if(['SUBMITTED','PENDING'].includes(s)) return s==='PENDING'?'PENDING':'SUBMITTED';
+ if(['UNDER REVIEW','IN REVIEW'].includes(s)) return 'UNDER REVIEW';
+ if(s==='APPROVED') return 'APPROVED';
  if(s==='PROCESSING') return 'PROCESSING';
- if(s==='PASSPORT PRINTED') return 'PASSPORT PRINTED';
- if(s==='READY FOR RELEASE') return 'READY FOR RELEASE';
+ if(['PASSPORT PRINTED','PRINTED'].includes(s)) return 'PASSPORT PRINTED';
+ if(['READY FOR RELEASE','READY FOR PICKUP'].includes(s)) return 'READY FOR RELEASE';
  if(s==='COMPLETED') return 'COMPLETED';
+ if(['RELEASED','COLLECTED','RELEASED / COLLECTED'].includes(s)) return 'RELEASED / COLLECTED';
+ if(['REJECTED','CANCELLED','CANCELED'].includes(s)) return s==='CANCELED'?'CANCELLED':s;
  return s || 'PROCESSING';
 }
+function applicationStatus(app){
+ return app?.type==='Passport Renewal'?(app.renewalStatus||app.status||'Pending'):(app?.status||'Pending');
+}
 function timelineFor(status){
- const s=statusLabel(status); let current=2;
- if(s==='SUBMITTED') current=0; else if(s==='PASSPORT PRINTED') current=3; else if(s==='READY FOR RELEASE') current=4; else if(s==='COMPLETED') current=5;
- return [
-  ['Application Submitted','Application was successfully submitted.'],
-  ['Documents Received','Required documents have been received.'],
-  ['Processing','Your application is currently being processed.'],
-  ['Passport Printed','Waiting for passport production.'],
-  ['Ready for Release','Passport will be available for release or delivery.']
- ].map((x,i)=>({title:x[0],desc:x[1],done:s==='COMPLETED'||i<current,current:s!=='COMPLETED'&&i===current}));
+ const s=statusLabel(status);
+ const stages=[
+  ['Pending','Application submitted and waiting for review.'],
+  ['Under Review','Personnel is checking the application and documents.'],
+  ['Approved','Application has passed the review.'],
+  ['Processing','Passport application is being processed.'],
+  ['Ready for Release','Passport is ready for pickup or dispatch.'],
+  ['Released / Collected','Passport has been handed over to the applicant.']
+ ];
+ const rejected=['REJECTED','CANCELLED'].includes(s);
+ let current=0;
+ if(['SUBMITTED','PENDING'].includes(s)) current=0;
+ else if(s==='UNDER REVIEW') current=1;
+ else if(s==='APPROVED') current=2;
+ else if(s==='PROCESSING') current=3;
+ else if(['PASSPORT PRINTED','READY FOR RELEASE'].includes(s)) current=4;
+ else if(['COMPLETED','RELEASED / COLLECTED'].includes(s)) current=5;
+ if(rejected){
+  const outcome=s==='REJECTED'?'Rejected':'Cancelled';
+  return [
+   {title:'Pending',desc:'Application submitted and waiting for review.',done:true,current:false},
+   {title:'Under Review',desc:'Personnel reviewed the application.',done:true,current:false},
+   {title:outcome,desc:s==='REJECTED'?'Application was not accepted. Check the remarks for the reason.':'Application was cancelled.',done:false,current:true}
+  ];
+ }
+ return stages.map((x,i)=>({title:x[0],desc:x[1],done:['COMPLETED','RELEASED / COLLECTED'].includes(s)||i<current,current:!['COMPLETED','RELEASED / COLLECTED'].includes(s)&&i===current}));
 }
 function buildTimeline(status){
- return timelineFor(status).map(step=>`<div class="timeline-step ${step.done?'done':''} ${step.current?'current':''}"><span>${step.done?'✓':step.current?'●':'○'}</span><div><b>${step.title}</b><small>${step.desc}</small></div></div>`).join('');
+ const currentApp=getApplications().find(a=>a.id===(sessionStorage.getItem('baiCurrentApplicationId')||''));
+ const actualStatus=currentApp?.type==='Passport Renewal'?(currentApp.renewalStatus||currentApp.status||'Pending'):status;
+ return timelineFor(actualStatus).map(step=>`<div class="timeline-step ${step.done?'done':''} ${step.current?'current':''}"><span>${step.done?'✓':step.current?'●':'○'}</span><div><b>${step.title}</b><small>${step.desc}</small></div></div>`).join('');
 }
-
 
 function uploadIcon(){
  return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -182,54 +207,110 @@ function adultRegister(){
      <div class="field"><label>First Name</label><input id="adultFirstName" autocomplete="given-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
      <div class="field"><label>Last Name</label><input id="adultLastName" autocomplete="family-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
      <div class="field"><label>Gender</label><select id="adultGender"><option value="" disabled selected hidden>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-     <div class="field"><label>Date of Birth</label><input id="adultDob" type="date" aria-label="Date of Birth"></div>
+     <div class="field"><label>Date of Birth</label><div class="date-select-group"><select id="adultDobMonth" aria-label="Birth month" onchange="syncAccountDate('adultDob')"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select><select id="adultDobDay" aria-label="Birth day" onchange="syncAccountDate('adultDob')"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select><select id="adultDobYear" aria-label="Birth year" onchange="syncAccountDate('adultDob')"><option value="">Year</option></select></div><input id="adultDob" type="hidden" aria-label="Date of Birth"></div>
      <div class="field"><label>Civil Status</label><select id="adultCivil"><option value="" disabled selected hidden>Select</option><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option><option>Separated</option></select></div>
      <div class="field full"><label>E-Mail</label><input id="adultEmail" type="email" placeholder="example@example.com"></div>
    </div>
    ${uploadBox('adultGovernmentId','Valid Government ID','wide-upload')}
    <button class="primary" style="margin-top:10px" onclick="createAccount('adult')">Create Account</button>
-   <label class="agreement"><input type="checkbox">Terms of Agreement</label>
-   <label class="agreement"><input type="checkbox">Privacy Policy</label>
-   <p class="agreement-note">By Creating an Account, you agree to the Bisaya Airlines<br>International’s Terms of Agreement, and Burgers</p>
+   <label class="agreement"><input type="checkbox"><a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></label>
+   <label class="agreement"><input type="checkbox"><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a></label>
+   <p class="agreement-note">Review the Privacy Policy and Terms &amp; Conditions before using this prototype.</p>
  </div></div>`;
 }
 
+function getRenewalDraft(){
+ let saved={};try{saved=JSON.parse(sessionStorage.getItem('baiRenewalDraft')||'{}')}catch(e){}
+ const acct=currentAccount()||{};const full=String(acct.name||accountName()||'').trim().split(/\s+/);
+ const defaults={renewalFirstName:acct.firstName||full[0]||'',renewalLastName:acct.lastName||(full.length>1?full.slice(1).join(' '):''),renewalSex:acct.gender||sessionStorage.getItem('baiAccountGender')||'',renewalDob:acct.dob||sessionStorage.getItem('baiAccountDob')||'',renewalCivilStatus:acct.civilStatus||sessionStorage.getItem('baiAccountCivilStatus')||'',renewalEmail:acct.email||accountEmail()};
+ return {...defaults,...saved};
+}
+function saveRenewalDraft(){
+ const draft=getRenewalDraft();
+ document.querySelectorAll('[data-renewal-field]').forEach(el=>{
+  if(el.type==='checkbox')draft[el.id]=el.checked;else if(el.type!=='file')draft[el.id]=el.value;
+  const hasValue=el.type==='checkbox'?el.checked:String(el.value||'').trim()!=='';
+  if(hasValue)clearRenewalFieldError(el.id);
+ });
+ const reason=document.querySelector('input[name="renewalReason"]:checked'); if(reason){draft.renewalReason=reason.value;clearRenewalFieldError('renewalReason');}
+ sessionStorage.setItem('baiRenewalDraft',JSON.stringify(draft));
+ updateRenewalFeePreview();
+}
+function renewalValue(id){return esc(getRenewalDraft()[id]||'')}
+function renewalSelected(id,value){return getRenewalDraft()[id]===value?'selected':''}
+function renewalChecked(id){return getRenewalDraft()[id]?'checked':''}
+function renewalStep(){const n=parseInt(sessionStorage.getItem('baiRenewalStep')||'1',10);return Math.max(1,Math.min(5,n||1))}
+function renewalField(id,label,type='text',required=true,placeholder=''){
+ if(type==='date') return renewalDateField(id,label,required);
+ return `<div class="field"><label for="${id}">${label}${required?' <span class="renewal-required">*</span>':''}</label><input data-renewal-field id="${id}" type="${type}" value="${renewalValue(id)}" ${required?'required':''} placeholder="${placeholder}" ${type==='email'?'autocomplete="email"':''} oninput="saveRenewalDraft()"><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`;
+}
+function renewalSelect(id,label,options,required=true){const draftValue=getRenewalDraft()[id];const placeholder=id==='embassy'?`<option value="" disabled hidden ${draftValue?'':'selected'}>Select ${label}</option>`:`<option value="">Select ${label.toLowerCase()}</option>`;return `<div class="field ${id==='embassy'?'full renewal-embassy-field':''}"><label for="${id}">${label}${required?' <span class="renewal-required">*</span>':''}</label><select data-renewal-field id="${id}" ${required?'required':''} onchange="saveRenewalDraft()${id==='renewalCivilStatus'?';toggleRenewalSpouseFields()':''}">${placeholder}${options.map(o=>`<option value="${esc(o)}" ${renewalSelected(id,o)}>${esc(o)}</option>`).join('')}</select><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`}
+function renewalDateField(id,label,required=true){const d=String(getRenewalDraft()[id]||'').split('-'),y=d[0]||'',m=d[1]||'',day=d[2]||'',yearNow=new Date().getFullYear();const months=['January','February','March','April','May','June','July','August','September','October','November','December'];return `<div class="field"><label for="${id}Year">${label}${required?' <span class="renewal-required">*</span>':''}</label><div class="renewal-date-parts"><select id="${id}Month" aria-label="${label} month" onchange="syncRenewalDate('${id}')"><option value="">Month</option>${months.map((n,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${m===String(i+1).padStart(2,'0')?'selected':''}>${n}</option>`).join('')}</select><select id="${id}Day" aria-label="${label} day" onchange="syncRenewalDate('${id}')"><option value="">Day</option>${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${String(n).padStart(2,'0')}" ${day===String(n).padStart(2,'0')?'selected':''}>${n}</option>`).join('')}</select><select id="${id}Year" aria-label="${label} year" onchange="syncRenewalDate('${id}')"><option value="">Year</option>${Array.from({length:yearNow-1899},(_,i)=>yearNow-i).map(n=>`<option value="${n}" ${y===String(n)?'selected':''}>${n}</option>`).join('')}</select></div><input data-renewal-field id="${id}" type="hidden" value="${renewalValue(id)}" ${required?'required':''}><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`}
+function renewalBirthDateField(){return renewalDateField('renewalDob','Date of Birth',true)}
+function syncRenewalDate(id){const y=document.getElementById(id+'Year')?.value,m=document.getElementById(id+'Month')?.value,d=document.getElementById(id+'Day')?.value,hidden=document.getElementById(id);if(hidden)hidden.value=y&&m&&d?`${y}-${m}-${d}`:'';saveRenewalDraft();}
+function syncRenewalBirthDate(){syncRenewalDate('renewalDob')}
+function toggleRenewalSpouseFields(){
+  const wrap=document.getElementById('renewalSpouseFields');
+  const married=document.getElementById('renewalCivilStatus')?.value==='Married';
+  if(wrap)wrap.style.display=married?'contents':'none';
+  if(!married){const draft=getRenewalDraft();draft.renewalSpouseName='';draft.renewalSpouseCitizenship='';sessionStorage.setItem('baiRenewalDraft',JSON.stringify(draft));}
+}
 function renewalForm(){
- return `<div class="auth-screen terminal-auth"><div class="registration-card renewal-card">
-   <button class="auth-back auth-back-form back-btn" onclick="go('dashboard')" aria-label="Back to dashboard">← Back</button>
-   <div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>PASSPORT RENEWAL</h1><p>Please fill out the form to renew your existing Passport</p></div></div>
-   ${uploadBox('renewalLegalDeclaration','Legal Declaration','wide-upload')}
-   <p class="renewal-note">A signed or downloaded statement affirming you are a Filipino<br>Citizen and that all information entered is true under penalty of law.</p>
-   <fieldset class="renewal-reason"><legend>Renewal Reason</legend>
-     <label class="agreement"><input type="radio" name="renewalReason" value="Passport is Expiring or Expired">Passport is Expiring or Expired</label>
-     <label class="agreement"><input type="radio" name="renewalReason" value="Passport is Damaged">Passport is Damaged</label>
-   </fieldset>
-   ${uploadBox('renewalGovernmentId','Valid Government ID','wide-upload')}
-   <div class="field" style="margin-top:10px"><label>DFA Consular Office / Site</label><select id="embassy"><option value="" selected disabled>Choose a DFA Consular Office / Site</option><option value="DFA Office of Consular Affairs - Aseana, Parañaque">DFA Office of Consular Affairs - Aseana, Parañaque</option><option value="DFA Consular Office NCR Central - Pasig">DFA Consular Office NCR Central - Pasig</option><option value="DFA Consular Office NCR East - Mandaluyong">DFA Consular Office NCR East - Mandaluyong</option><option value="DFA Consular Office NCR North - Quezon City">DFA Consular Office NCR North - Quezon City</option><option value="DFA Consular Office NCR Northeast - Quezon City">DFA Consular Office NCR Northeast - Quezon City</option><option value="DFA Consular Office NCR South - Muntinlupa">DFA Consular Office NCR South - Muntinlupa</option><option value="DFA Consular Office NCR West - Manila">DFA Consular Office NCR West - Manila</option></select></div>
-   <p class="renewal-note">Please choose the nearest Philippine Embassy or Consulate to<br>proceed with your passport renewal application.</p>
-   <button class="primary" onclick="submitRenewal()">Proceed</button>
- </div></div>`;
+ const step=renewalStep();
+ const titles=['Reason & Documents','Personal & Passport Details','Contact & Emergency','Oath','Fee & Review'];
+ let body='';
+ if(step===1) body=`<div class="renewal-form-grid"><div class="field full"><label>Renewal Reason <span class="renewal-required">*</span></label><div class="renewal-reason-options"><label><input type="radio" name="renewalReason" value="Passport is Expiring or Expired" ${getRenewalDraft().renewalReason==='Passport is Expiring or Expired'?'checked':''} onchange="saveRenewalDraft()"> Passport is Expiring or Expired</label><label><input type="radio" name="renewalReason" value="Passport is Damaged" ${getRenewalDraft().renewalReason==='Passport is Damaged'?'checked':''} onchange="saveRenewalDraft()"> Passport is Damaged</label><label><input type="radio" name="renewalReason" value="Passport is Lost" ${getRenewalDraft().renewalReason==='Passport is Lost'?'checked':''} onchange="saveRenewalDraft()"> Passport is Lost</label></div><p class="renewal-fee-hint" id="renewalPenaltyPreview">Choose a reason to see applicable penalty.</p></div><div class="field full"><label>Legal Declaration <span class="renewal-required">*</span></label>${uploadBox('renewalLegalDeclaration','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB. Select the file again if you reopen this form in a new browser session.</p></div><div class="field full"><label>Valid Government ID <span class="renewal-required">*</span></label>${uploadBox('renewalGovernmentId','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB.</p></div>${renewalSelect('embassy','DFA Consular Office / Site',['DFA Office of Consular Affairs - Aseana, Parañaque','DFA Consular Office NCR Central - Pasig','DFA Consular Office NCR East - Mandaluyong','DFA Consular Office NCR North - Quezon City','DFA Consular Office NCR Northeast - Quezon City','DFA Consular Office NCR South - Muntinlupa','DFA Consular Office NCR West - Manila'])}</div>`;
+ if(step===2) body=`<div class="renewal-form-grid">${renewalField('renewalLastName','Last Name')}${renewalField('renewalFirstName','First Name')}${renewalField('renewalMiddleName','Middle Name / Maiden Name', 'text',false)}${renewalSelect('renewalSex','Sex',['Male','Female'])}${renewalBirthDateField()}${renewalField('renewalBirthPlace','Place of Birth')}${renewalSelect('renewalCivilStatus','Civil Status',['Single','Married','Widowed','Divorced','Separated'])}${renewalField('renewalPassportNumber','Current Passport Number')}${renewalField('renewalPassportIssueDate','Passport Date of Issue','date')}${renewalField('renewalPassportIssuePlace','Passport Place of Issue')}${renewalField('renewalForeignPassport','Foreign Passport Details (if applicable)','text',false)}<div class="field full"><h3 class="renewal-subheading">Family Information</h3></div>${renewalField('renewalFatherName','Father’s Full Name')}${renewalField('renewalFatherDob','Father’s Date of Birth','date')}${renewalField('renewalFatherCitizenship','Father’s Citizenship')}${renewalField('renewalMotherName','Mother’s Full Name')}${renewalField('renewalMotherDob','Mother’s Date of Birth','date')}${renewalField('renewalMotherCitizenship','Mother’s Citizenship')}<div id="renewalSpouseFields" style="display:${getRenewalDraft().renewalCivilStatus==='Married'?'contents':'none'}">${renewalField('renewalSpouseName','Spouse’s Full Name','text',false)}${renewalField('renewalSpouseCitizenship','Spouse’s Nationality','text',false)}</div></div>`;
+ if(step===3) body=`<div class="renewal-form-grid">${renewalField('renewalPresentAddress','Present Address')}${renewalField('renewalPermanentAddress','Permanent Address')}${renewalField('renewalMobile','Mobile Number','tel')}${renewalField('renewalEmail','Email Address','email')}${renewalField('renewalOccupation','Occupation')}${renewalField('renewalEmployer','Employer / School')}${renewalField('renewalEmergencyName','Emergency Contact Name')}${renewalField('renewalEmergencyAddress','Emergency Contact Address')}${renewalField('renewalEmergencyPhone','Emergency Contact Number','tel')}</div>`;
+ if(step===4) body=`<div class="renewal-oath"><h3>Applicant’s Oath</h3><p>I declare that I am a Filipino citizen; that all information supplied in this application is true and correct; that the documents submitted are authentic; and that I understand the one-passport limit. I understand that false statements may be punishable under Republic Act No. 8239.</p><label class="renewal-oath-check"><input data-renewal-field id="renewalOathAccepted" type="checkbox" ${renewalChecked('renewalOathAccepted')} onchange="saveRenewalDraft()"> I have read and accept the sworn declaration. <span class="renewal-required">*</span></label><div class="field renewal-signature-field"><label for="renewalSignature">Type your full name as your electronic signature <span class="renewal-required">*</span></label><input data-renewal-field id="renewalSignature" value="${renewalValue('renewalSignature')}" oninput="saveRenewalDraft()" placeholder="Full legal name"></div></div>`;
+ if(step===5) body=`<div class="renewal-form-grid">${renewalSelect('renewalProcessing','Processing Type',['Regular','Express'])}${renewalSelect('renewalCourier','Courier Delivery',['No','Yes'])}<div id="renewalDeliveryAddressWrap" class="field full" style="display:${getRenewalDraft().renewalCourier==='Yes'?'block':'none'}">${renewalField('renewalDeliveryAddress','Preferred Delivery Address','text',true)}</div><div class="field full"><div class="renewal-total-card"><div><span>Processing fee</span><strong id="renewalProcessingFee">₱950</strong></div><div><span>Courier</span><strong id="renewalCourierFee">₱0</strong></div><div><span>Lost / damaged penalty</span><strong id="renewalPenaltyFee">₱0</strong></div><div class="renewal-grand-total"><span>Estimated total</span><strong id="renewalTotalFee">₱950</strong></div><p id="renewalProcessingTime">Estimated processing: 10–12 working days (Regular).</p></div></div><div class="field full"><h3 class="renewal-subheading">Review your details</h3><div id="renewalReviewSummary" class="renewal-review-summary"></div></div></div>`;
+ return `<div class="auth-screen terminal-auth renewal-wizard-screen"><div class="registration-card renewal-card renewal-wizard-card"><button class="auth-back auth-back-form back-btn" onclick="go('dashboard')" aria-label="Back to dashboard">← Dashboard</button><div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>PASSPORT RENEWAL</h1><p>Complete each step to submit your renewal request.</p></div></div><div class="renewal-progress" aria-label="Renewal progress">${titles.map((t,i)=>`<div class="renewal-progress-item ${i+1<step?'complete':i+1===step?'active':''}"><span>${i+1<step?'✓':i+1}</span><small>${t}</small></div>`).join('')}</div><div class="renewal-step-heading"><span>STEP ${step} OF 5</span><h2>${titles[step-1]}</h2></div><div class="renewal-step-content">${body}</div><div class="renewal-step-actions">${step>1?'<button class="secondary-action" type="button" onclick="renewalPrevious()">Back</button>':'<button class="secondary-action" type="button" onclick="go(\'dashboard\')">Back</button>'}${step<5?'<button class="primary" type="button" onclick="renewalNext()">Next</button>':'<button class="primary" type="button" onclick="submitRenewal()">Submit Renewal</button>'}</div><p class="renewal-form-footnote">Fields marked * are required. Your entries are preserved when moving between steps.</p></div></div>`;
+}
+function wireRenewalUploadControls(){document.querySelectorAll('.renewal-wizard-card .upload-box input[type=file]').forEach(input=>{const box=input.closest('.upload-box');if(!box||box.querySelector('.renewal-remove-file'))return;const btn=document.createElement('button');btn.type='button';btn.className='renewal-remove-file';btn.textContent='Remove';btn.style.display=window.baiUploadFiles[input.id]?'inline-flex':'none';btn.onclick=e=>{e.preventDefault();e.stopPropagation();delete window.baiUploadFiles[input.id];input.value='';const name=box.querySelector('.upload-file-name');if(name)name.textContent='';box.classList.remove('has-file','upload-invalid');box.querySelector('.field-error')?.remove();btn.style.display='none';};box.appendChild(btn);input.addEventListener('change',()=>{btn.style.display=input.files?.length?'inline-flex':'none';});});}
+function renewalPrevious(){saveRenewalDraft();sessionStorage.setItem('baiRenewalStep',String(Math.max(1,renewalStep()-1)));go('renewal-form')}
+function renewalNext(){
+ saveRenewalDraft(); clearRenewalFieldErrors(); const s=renewalStep(); let ids=[];
+ if(s===1){
+  if(!document.querySelector('input[name="renewalReason"]:checked'))showRenewalFieldError('renewalReason','Please choose a renewal reason.');
+  ids=['embassy'];
+  for(const id of ['renewalLegalDeclaration','renewalGovernmentId']){const f=window.baiUploadFiles[id];if(f){const okType=['application/pdf','image/jpeg','image/png'].includes(f.type);if(!okType)showRenewalUploadError(id,'Upload a PDF, JPG, or PNG file.');else if(f.size>10*1024*1024)showRenewalUploadError(id,'File must be 10 MB or smaller.');}}
+  ['renewalLegalDeclaration','renewalGovernmentId'].forEach(id=>{if(!(window.baiUploadFiles[id]||document.getElementById(id)?.files?.length))showRenewalUploadError(id,id==='renewalLegalDeclaration'?'Please upload the Legal Declaration.':'Please upload a valid government ID.')});
+ }
+ if(s===2) ids=['renewalLastName','renewalFirstName','renewalSex','renewalDob','renewalBirthPlace','renewalCivilStatus','renewalPassportNumber','renewalPassportIssueDate','renewalPassportIssuePlace','renewalFatherName','renewalFatherDob','renewalFatherCitizenship','renewalMotherName','renewalMotherDob','renewalMotherCitizenship'];
+ if(s===3) ids=['renewalPresentAddress','renewalPermanentAddress','renewalMobile','renewalEmail','renewalOccupation','renewalEmployer','renewalEmergencyName','renewalEmergencyAddress','renewalEmergencyPhone'];
+ if(s===4){const d=getRenewalDraft();if(!d.renewalOathAccepted)showRenewalFieldError('renewalOathAccepted','Please accept the applicant’s oath.');if(!String(d.renewalSignature||'').trim())showRenewalFieldError('renewalSignature','Please enter your electronic signature.');if(!d.renewalOathAccepted||!String(d.renewalSignature||'').trim())return;}
+ let invalid=false;
+ for(const id of ids){const el=document.getElementById(id);if(!el||!String(el.value||'').trim()){showRenewalFieldError(id,`Please complete ${renewalFieldLabel(id)}.`);invalid=true;continue;}if(el.type==='email'&&!el.checkValidity()){showRenewalFieldError(id,'Please enter a valid email address.');invalid=true;continue;}/* Date fields only require all date parts to be selected; do not show a separate date-validity warning. */
+ }
+ if(s===1&&!document.querySelector('input[name="renewalReason"]:checked'))invalid=true;
+ if(s===5&&getRenewalDraft().renewalCourier==='Yes'&&!String(getRenewalDraft().renewalDeliveryAddress||'').trim()){showRenewalFieldError('renewalDeliveryAddress','Please enter your preferred delivery address.');invalid=true;}
+ if(invalid)return;
+ sessionStorage.setItem('baiRenewalStep',String(s+1));go('renewal-form');
+}
+function showRenewalUploadError(id,message){const input=document.getElementById(id),box=input?.closest('.upload-box');if(!box)return;box.classList.add('upload-invalid');let e=box.querySelector('.field-error');if(!e){e=document.createElement('div');e.className='field-error upload-error';box.appendChild(e);}e.textContent=message;}
+function renewalFieldLabel(id){return ({embassy:'the DFA Consular Office / Site',renewalLastName:'your last name',renewalFirstName:'your first name',renewalSex:'your sex',renewalDob:'your date of birth',renewalReason:'a renewal reason',renewalLegalDeclaration:'the Legal Declaration',renewalGovernmentId:'a valid government ID',renewalBirthPlace:'your place of birth',renewalCivilStatus:'your civil status',renewalPassportNumber:'your current passport number',renewalPassportIssueDate:'your passport date of issue',renewalPassportIssuePlace:'your passport place of issue',renewalFatherName:'your father’s full name',renewalFatherDob:'your father’s date of birth',renewalFatherCitizenship:'your father’s citizenship',renewalMotherName:'your mother’s full name',renewalMotherDob:'your mother’s date of birth',renewalMotherCitizenship:'your mother’s citizenship',renewalPresentAddress:'your present address',renewalPermanentAddress:'your permanent address',renewalMobile:'your mobile number',renewalEmail:'your email address',renewalOccupation:'your occupation',renewalEmployer:'your employer / school',renewalEmergencyName:'your emergency contact name',renewalEmergencyAddress:'your emergency contact address',renewalEmergencyPhone:'your emergency contact number'})[id]||id;}
+function clearRenewalFieldError(id){
+ const field=document.getElementById(id);const wrap=field?.closest('.field')||document.querySelector(`[data-error-for="${id}"]`)?.closest('.field')||(id==='renewalReason'?document.querySelector('.renewal-reason-options')?.closest('.field'):null);if(!wrap)return;
+ const error=wrap.querySelector(`[data-error-for="${id}"]`);if(error){error.hidden=true;error.textContent='';}
+ if(field?.type==='hidden')wrap.querySelectorAll('.renewal-date-parts select').forEach(x=>x.classList.remove('renewal-invalid'));else field?.classList.remove('renewal-invalid');
+ if(id==='renewalReason')wrap.querySelector('.renewal-reason-options')?.classList.remove('renewal-invalid');
+}
+function showRenewalFieldError(id,message){const field=document.getElementById(id);let wrap=field?.closest('.field')||document.querySelector(`[data-error-for="${id}"]`)?.closest('.field');if(id==='renewalReason')wrap=document.querySelector('.renewal-reason-options')?.closest('.field');if(!wrap)return;let error=wrap.querySelector(`[data-error-for="${id}"]`);if(!error){error=document.createElement('small');error.className='renewal-field-error';error.dataset.errorFor=id;wrap.appendChild(error);}error.textContent=message;error.hidden=false;if(field?.type==='hidden'){wrap.querySelectorAll('.renewal-date-parts select').forEach(x=>x.classList.add('renewal-invalid'));}else if(field){field.classList.add('renewal-invalid');}else{wrap.classList.add('renewal-invalid');}}
+function clearRenewalFieldErrors(){document.querySelectorAll('.renewal-field-error').forEach(e=>{e.hidden=true;e.textContent=''});document.querySelectorAll('.renewal-invalid').forEach(e=>e.classList.remove('renewal-invalid'));document.querySelectorAll('.renewal-reason-options').forEach(e=>e.classList.remove('renewal-invalid'));document.querySelectorAll('.renewal-wizard-card .upload-invalid').forEach(e=>e.classList.remove('upload-invalid'));document.querySelectorAll('.renewal-wizard-card .upload-error').forEach(e=>e.remove());}
+function renewalError(message){let box=document.getElementById('renewalInlineError');if(!box){box=document.createElement('p');box.id='renewalInlineError';box.className='renewal-inline-error';document.querySelector('.renewal-step-content')?.prepend(box);}if(box)box.textContent=message;else alert(message)}
+function updateRenewalFeePreview(){
+ const d=getRenewalDraft(),reason=d.renewalReason||document.querySelector('input[name="renewalReason"]:checked')?.value||'';const processing=d.renewalProcessing||'Regular';const courier=(d.renewalCourier||'No')==='Yes'||d.renewalDeliveryChoice==='Courier Delivery';const penalty=/lost|damaged/i.test(reason)?350:0;const base=processing==='Express'?1200:950;const courierFee=courier?150:0;const money=n=>'₱'+n.toLocaleString('en-PH');
+ const penaltyPreview=document.getElementById('renewalPenaltyPreview');if(penaltyPreview)penaltyPreview.textContent=penalty?`A ₱350 lost/damaged passport penalty is included in your estimate.`:'No lost/damaged passport penalty selected.';
+ const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val};set('renewalProcessingFee',money(base));set('renewalCourierFee',money(courierFee));set('renewalPenaltyFee',money(penalty));set('renewalTotalFee',money(base+courierFee+penalty));set('renewalProcessingTime',`Estimated processing: ${processing==='Express'?'5–7 working days (Express)':'10–12 working days (Regular)'}.`);
+ const deliveryWrap=document.getElementById('renewalDeliveryAddressWrap');if(deliveryWrap)deliveryWrap.style.display=d.renewalCourier==='Yes'?'block':'none';
+ const summary=document.getElementById('renewalReviewSummary');if(summary){const labels=[['Renewal reason',reason],['Legal Declaration',window.baiUploadFiles.renewalLegalDeclaration?.name||'Uploaded in this session'],['Valid Government ID',window.baiUploadFiles.renewalGovernmentId?.name||'Uploaded in this session'],['DFA Consular Office / Site',d.embassy],['Last name',d.renewalLastName],['First name',d.renewalFirstName],['Middle / maiden name',d.renewalMiddleName],['Sex',d.renewalSex],['Date of birth',d.renewalDob],['Place of birth',d.renewalBirthPlace],['Civil status',d.renewalCivilStatus],['Current passport number',d.renewalPassportNumber],['Passport date of issue',d.renewalPassportIssueDate],['Passport place of issue',d.renewalPassportIssuePlace],['Foreign passport details',d.renewalForeignPassport],['Father’s full name',d.renewalFatherName],['Father’s date of birth',d.renewalFatherDob],['Father’s citizenship',d.renewalFatherCitizenship],['Mother’s full name',d.renewalMotherName],['Mother’s date of birth',d.renewalMotherDob],['Mother’s citizenship',d.renewalMotherCitizenship],['Spouse’s full name',d.renewalSpouseName],['Spouse’s citizenship',d.renewalSpouseCitizenship],['Present address',d.renewalPresentAddress],['Permanent address',d.renewalPermanentAddress],['Mobile number',d.renewalMobile],['Email address',d.renewalEmail],['Occupation',d.renewalOccupation],['Employer / school',d.renewalEmployer],['Emergency contact name',d.renewalEmergencyName],['Emergency contact address',d.renewalEmergencyAddress],['Emergency contact number',d.renewalEmergencyPhone],['Oath accepted',d.renewalOathAccepted?'Yes':'No'],['Electronic signature',d.renewalSignature],['Processing type',processing],['Courier delivery',courier?'Yes':'No'],['Delivery address',courier?(d.renewalDeliveryAddress||'Not provided'):'Not applicable'],['Lost / damaged penalty',money(penalty)]];summary.innerHTML=labels.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v||'Not provided')}</strong></div>`).join('')+`<div><span>Processing fee</span><strong>${money(base)}</strong></div><div><span>Courier fee</span><strong>${money(courierFee)}</strong></div><div><span>Estimated total</span><strong>${money(base+courierFee+penalty)}</strong></div>`;}
 }
 function submitRenewal(){
- const existing=getActiveApplication();
- if(existing){
-   sessionStorage.setItem('baiCurrentApplicationId',existing.id);
-   alert(`You already have an active ${existing.type} application. You can only have one active passport application at a time. Please check your existing application status before starting another application.`);
-   go('status');
-   return;
- }
- let ok=true;
- ['renewalLegalDeclaration','renewalGovernmentId'].forEach(id=>{ if(!validateUpload(id, id==='renewalLegalDeclaration'?'Please upload the legal declaration.':'Please upload a valid government ID.')) ok=false; });
- const reason=document.querySelector('input[name="renewalReason"]:checked');
- if(!reason){ alert('Please select a renewal reason.'); ok=false; }
- const embassy=document.getElementById('embassy');
- if(!embassy?.value.trim()){ showFieldError(embassy,'Please select a DFA Consular Office / Site.'); ok=false; }
- if(!ok) return;
- const apps=getApplications();
- const appId=`BAI-APP-${Date.now().toString().slice(-8)}`;
- const app={id:appId,type:'Passport Renewal',arn:'Pending',payment:'Pending',eReceipt:'Pending',email:accountEmail(),contactEmail:accountEmail(),status:'SUBMITTED',renewalReason:reason.value,embassy:embassy.value.trim()};
- apps.push(app); saveApplications(apps); sessionStorage.setItem('baiCurrentApplicationId',appId); sessionStorage.setItem('baiRenewalSubmitted','true');
- go('renewal-continue');
+ saveRenewalDraft();const existing=getActiveApplication();if(existing){sessionStorage.setItem('baiCurrentApplicationId',existing.id);renewalError('You already have an active passport application. Check its status before starting another application.');go('status');return;}
+ const d=getRenewalDraft();if(!d.renewalProcessing||!d.renewalCourier){renewalError('Please choose processing type and courier option.');return;}
+ const apps=getApplications();const now=new Date().toISOString();const renewalId=`BAI-REN-${Date.now().toString().slice(-8)}`;const base=d.renewalProcessing==='Express'?1200:950;const courier=d.renewalCourier==='Yes'?150:0;const penalty=/lost|damaged/i.test(d.renewalReason||'')?350:0;
+ const app={id:renewalId,renewalId,applicationId:sessionStorage.getItem('baiAccountId')||'',memberId:sessionStorage.getItem('baiAccountId')||'',type:'Passport Renewal',arn:'Pending',payment:'Pending',eReceipt:'Pending',email:accountEmail(),contactEmail:d.renewalEmail||accountEmail(),status:'Pending',renewalStatus:'Pending',renewalReason:d.renewalReason,embassy:d.embassy,renewalDetails:d,renewalDocuments:{legalDeclaration:window.baiUploadFiles.renewalLegalDeclaration?.name||'',governmentId:window.baiUploadFiles.renewalGovernmentId?.name||''},processingType:d.renewalProcessing,courier:d.renewalCourier,penalty,totalFee:base+courier+penalty,administratorRemarks:'',createdAt:now,updatedAt:now};
+ apps.push(app);saveApplications(apps);sessionStorage.setItem('baiCurrentApplicationId',renewalId);sessionStorage.setItem('baiRenewalSubmittedId',renewalId);sessionStorage.removeItem('baiRenewalDraft');sessionStorage.setItem('baiRenewalStep','1');delete window.baiUploadFiles.renewalLegalDeclaration;delete window.baiUploadFiles.renewalGovernmentId;go('renewal-continue');
 }
 
 function lostPassportReplacement(){
@@ -367,7 +448,7 @@ function linkApplication(){
  return memberShell(`<div class="page-panel" style="max-width:720px;margin:auto;text-align:center">
    <h1>LINK YOUR PASSPORT APPLICATION</h1><p>Enter the reference information provided by the DFA<br>to connect your passport application to your MyBAI account.</p>
    <div class="field" style="width:100%;text-align:left"><label>DFA Appointment Reference No. (ARN)</label><input id="dfaArn" inputmode="numeric" maxlength="17" placeholder="17-digit ARN" oninput="this.value=this.value.replace(/\D/g,'').slice(0,17)"></div>
-   <div class="field" style="width:100%;text-align:left;margin-top:12px"><label>Application Type</label><select id="linkApplicationType"><option value="New Passport">New Passport</option><option value="Passport Renewal">Passport Renewal</option><option value="Lost Passport Replacement">Lost Passport Replacement</option></select></div>
+   <div class="field" style="width:100%;text-align:left;margin-top:12px"><label>Application Type</label><select id="linkApplicationType"><option value="New Passport">New Passport</option><option value="Passport Renewal">Passport Renewal</option></select></div>
    <button class="primary" style="margin-top:18px" onclick="linkPassportApplication()">LINK APPLICATION</button>
    <button class="secondary-action" style="margin-top:10px" onclick="go('status')">← Back to Check Status</button>
  </div>`,'help');
@@ -434,22 +515,40 @@ function dashboard(){
     <section class="panel"><h3>Recent Updates</h3>${current?`<div class="update"><span class="dot blue">i</span><span>${esc(current.type)} is currently ${esc(statusLabel(current.status).toLowerCase())}.<small style="display:block">Application ID: ${esc(current.id)}</small></span><time>Latest update<br>Today</time></div><div class="update"><span class="dot blue">i</span><span>${current.arn&&current.arn!=='Pending'?'Your DFA reference information is linked to this application.':'Your application record has been created and is ready for tracking.'}<small style="display:block">ARN: ${esc(current.arn||'Pending')}</small></span><time>Latest update<br>Today</time></div>`:`<div class="update"><span class="dot blue">i</span><span>Your MyBAI account is ready. No passport application is currently linked.<small style="display:block">You can start a new application or link an existing one.</small></span><time>Today</time></div>`}</section>
     <section class="panel"><h3>PASSPORT OVERVIEW</h3>${current?`<div class="passport"><strong>Application</strong><div class="name">${esc(current.type)}</div><strong>Application ID</strong><div class="id">${esc(current.id)}</div><div class="map">⌁</div></div><div class="trip"><div class="trip-head"><span>Application Status</span><span onclick="go('status')" style="cursor:pointer">View details</span></div><div class="route"><span>${esc(statusLabel(current.status))}</span></div><div class="trip-meta">DFA ARN <b>${esc(current.arn||'Pending')}</b><span class="status">ACTIVE</span></div></div>`:`<div class="passport"><strong>MyBAI Account</strong><div class="name">${esc(accountName())}</div><div class="map">⌁</div></div><div class="trip"><div class="trip-head"><span>No Passport Application Linked</span><span onclick="go('status')" style="cursor:pointer">Check Status</span></div><div class="route"><span>Start or link an application when you are ready.</span></div><div class="trip-meta">Your account can have multiple passport applications over time.</div></div>`}</section>
    </div>
-   <section class="panel services-panel"><h3>PASSPORT SERVICES</h3><div class="service-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('renewal-form')">Renew Passport</button><button class="primary" onclick="go('replacement-form')">Replace Lost Passport</button><button class="link-btn service-link" onclick="go('link-application')">Link Existing Passport Application</button></div></section>
-   </main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span>Privacy Policy　|　Terms & Conditions</span></footer>
+   <section class="panel services-panel"><h3>PASSPORT SERVICES</h3><div class="service-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('renewal-form')">Renew Passport</button><button class="link-btn service-link" onclick="go('link-application')">Link Existing Passport Application</button></div></section>
+   </main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer>
  </div>`;
 }
 
+function runPassportStatusSimulation(){
+ if(window.__baiPassportStatusSimulation) return;
+ window.__baiPassportStatusSimulation=window.setInterval(()=>{
+  if(sessionStorage.getItem('baiLoggedIn')!=='true') return;
+  const apps=getApplications(); let changed=false; const now=Date.now();
+  const simulated=['Approved','Processing','Ready for Release','Released / Collected'];
+  for(const a of apps){
+   const status=String(a.renewalStatus||a.status||'Pending');
+   if(!simulated.includes(status)) continue;
+   if(!a.simulationStartedAt){ a.simulationStartedAt=new Date(now).toISOString(); changed=true; }
+   const elapsed=now-new Date(a.simulationStartedAt).getTime();
+   const target=elapsed>=9000?'Released / Collected':elapsed>=6000?'Ready for Release':elapsed>=3000?'Processing':'Approved';
+   const rank={'Approved':0,'Processing':1,'Ready for Release':2,'Released / Collected':3};
+   if(rank[target]>rank[status]){ a.renewalStatus=target; a.status=target; a.updatedAt=new Date(now).toISOString(); changed=true; }
+  }
+  if(changed){ saveApplications(apps); if(parseRouteHash().page==='status'){ const y=window.scrollY; render(); window.scrollTo(0,y); } }
+ },500);
+}
 function status(){
  const apps=getApplications(); const current=apps.length?getCurrentApplication():null;
- const list=apps.map(a=>`<div class="application-list-item ${current&&a.id===current.id?'selected':''}"><div><span class="status-label">${esc(a.type)}</span><h3>${esc(a.id)}</h3><small>${esc(statusLabel(a.status))}</small></div><button class="primary" onclick="viewApplication('${esc(a.id)}')">View Status</button></div>`).join('');
+ const list=apps.map(a=>`<div class="application-list-item ${current&&a.id===current.id?'selected':''}"><div><span class="status-label">${esc(a.type)}</span><h3>${esc(a.id)}</h3><small>${esc(statusLabel(applicationStatus(a)))}</small></div><button class="primary" onclick="viewApplication('${esc(a.id)}')">View Status</button></div>`).join('');
  return `<div class="dashboard"><aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav"><button onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button class="active" onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button></nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
  <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions"><button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${notificationBadgeHtml()}</button><span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span><div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile');closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div></div></header>
  <main class="content"><div class="page-panel status-panel"><h2>Check Passport Application Status</h2><p class="status-intro">Select a passport application to view its current status and reference information.</p>
  ${apps.length?`<div class="application-list">${list}</div>`:`<div class="empty-status"><h3>No Passport Application Linked</h3><p>Your MyBAI account is ready, but there is no passport application linked yet.</p><div class="status-empty-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('link-application')">Link Existing Application</button></div></div>`}
- ${current?`<div id="statusResult" class="status-result visible"><div class="status-result-head"><div><span class="status-label">PASSPORT APPLICATION</span><h3>Application Details</h3></div><span class="current-status">${esc(statusLabel(current.status))}</span></div><div class="reference-grid"><div><span>Application Type</span><b>${esc(current.type)}</b></div><div><span>BAI Application ID</span><b>${esc(current.id)}</b></div><div><span>Appointment Reference No. (ARN)</span><b>${esc(current.arn||'Not linked')}</b></div><div><span>Payment Reference</span><b>${esc(current.payment||'Not linked')}</b></div><div><span>eReceipt No.</span><b>${esc(current.eReceipt||'Not linked')}</b></div></div><div class="status-timeline">${buildTimeline(current.status)}</div><p class="status-note">Your application references are associated with this passport application record.</p>${current && !['COMPLETED','CANCELLED'].includes(String(current.status||'').toUpperCase())?`<div class="status-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">${String(current.status||'').toUpperCase()==='READY FOR RELEASE'?`<button class="primary" onclick="confirmApplicationReceived('${esc(current.id)}')">Confirm Passport Received</button>`:''}<button class="secondary-action" onclick="cancelApplication('${esc(current.id)}')">Cancel Application</button></div>`:''}</div>`:''}
- </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span>Privacy Policy　|　Terms & Conditions</span></footer></div>`;
+ ${current?`<div id="statusResult" class="status-result visible"><div class="status-result-head"><div><span class="status-label">PASSPORT APPLICATION</span><h3>Application Details</h3></div><span class="current-status">${esc(statusLabel(applicationStatus(current)))}</span></div><div class="reference-grid"><div><span>Application Type</span><b>${esc(current.type)}</b></div><div><span>BAI Application ID</span><b>${esc(current.id)}</b></div><div><span>Appointment Reference No. (ARN)</span><b>${esc(current.arn||'Not linked')}</b></div><div><span>Payment Reference</span><b>${esc(current.payment||'Not linked')}</b></div><div><span>eReceipt No.</span><b>${esc(current.eReceipt||'Not linked')}</b></div>${current.type==='Passport Renewal'?`<div><span>Renewal ID</span><b>${esc(current.renewalId||current.id)}</b></div><div><span>Estimated Total Fee</span><b>₱${Number(current.totalFee||0).toLocaleString('en-PH')}</b></div><div><span>Administrator Remarks</span><b>${esc(current.administratorRemarks||'No remarks yet.')}</b></div>`:''}</div><div class="status-timeline" id="status-timeline-section">${buildTimeline(current.status)}</div><p class="status-note">Your application references are associated with this passport application record.</p>${current && !['COMPLETED','RELEASED / COLLECTED','CANCELLED','REJECTED'].includes(String(applicationStatus(current)).toUpperCase())?`<div class="status-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">${String(current.status||'').toUpperCase()==='READY FOR RELEASE'?`<button class="primary" onclick="confirmApplicationReceived('${esc(current.id)}')">Confirm Passport Received</button>`:''}<button class="secondary-action" onclick="cancelApplication('${esc(current.id)}')">Cancel Application</button></div>`:''}</div>`:''}
+ </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
-function viewApplication(id){ if(!getApplications().some(a=>a.id===id)) return; sessionStorage.setItem('baiCurrentApplicationId',id); go('status'); }
+function viewApplication(id){ if(!getApplications().some(a=>a.id===id)) return; sessionStorage.setItem('baiCurrentApplicationId',id); go('status'); window.setTimeout(()=>document.getElementById('status-timeline-section')?.scrollIntoView({behavior:'smooth',block:'start'}),0); }
 function showApplicationStatus(){ const first=getApplications()[0]; if(first){sessionStorage.setItem('baiCurrentApplicationId',first.id);go('status');} }
 
 function formatDisplayDate(value){
@@ -460,10 +559,10 @@ function formatDisplayDate(value){
 }
 function profile(){
  const email=esc(accountEmail()); const success=sessionStorage.getItem('baiEmailChangeSuccess')==='true'; if(success) sessionStorage.removeItem('baiEmailChangeSuccess');
- const civil=sessionStorage.getItem('baiAccountCivilStatus')||'Not applicable for minor accounts';
+ const civil=sessionStorage.getItem('baiAccountType')==='minor'?'Single':(sessionStorage.getItem('baiAccountCivilStatus')||'Not applicable for minor accounts');
  return `<div class="dashboard"><aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav"><button onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button class="active"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button></nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
  <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions"><button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${notificationBadgeHtml()}</button><span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span><div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile');closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div></div></header>
- <main class="content"><div class="page-panel profile-panel"><h2>My Profile</h2>${success?`<div class="profile-success">Email address updated successfully.</div>`:''}<div class="stat-grid profile-details-grid"><div class="stat"><b>${esc(accountName())}</b>Full Name</div><div class="stat"><b>${esc(sessionStorage.getItem('baiAccountGender')||'—')}</b>Gender</div><div class="stat"><b>${esc(civil)}</b>Civil Status</div><div class="stat"><b>${esc(formatDisplayDate(sessionStorage.getItem('baiAccountDob')||''))}</b>Date of Birth</div><div class="stat"><b>Active</b>Account Status</div></div><hr style="margin:30px 0;border:0;border-top:1px solid #ddd"><div class="email-account-section"><div><label>Email Address</label><div class="current-email">${email||'No email address on file'}</div><p class="profile-helper">Your email address is used to receive OTPs when signing in to your MyBAI account.</p></div><button class="primary change-email-btn" onclick="go('change-email')">Change Email Address</button></div></div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span>Privacy Policy　|　Terms & Conditions</span></footer></div>`;
+ <main class="content"><div class="page-panel profile-panel"><h2>My Profile</h2>${success?`<div class="profile-success">Email address updated successfully.</div>`:''}<div class="stat-grid profile-details-grid"><div class="stat"><b>${esc(accountName())}</b>Full Name</div><div class="stat"><b>${esc(sessionStorage.getItem('baiAccountGender')||'—')}</b>Gender</div><div class="stat"><b>${esc(civil)}</b>Civil Status</div><div class="stat"><b>${esc(formatDisplayDate(sessionStorage.getItem('baiAccountDob')||''))}</b>Date of Birth</div><div class="stat"><b>Active</b>Account Status</div></div><hr style="margin:30px 0;border:0;border-top:1px solid #ddd"><div class="email-account-section"><div><label>Email Address</label><div class="current-email">${email||'No email address on file'}</div><p class="profile-helper">Your email address is used to receive OTPs when signing in to your MyBAI account.</p></div><button class="primary change-email-btn" onclick="go('change-email')">Change Email Address</button></div></div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
 
 function changeEmail(){
@@ -528,7 +627,7 @@ function changeEmail(){
        `}
      </div>
    </main>
-   <footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span>Privacy Policy　|　Terms & Conditions</span></footer>
+   <footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer>
  </div>`;
 }
 
@@ -687,9 +786,9 @@ function settings(){
  <main class="content"><div class="page-panel settings-panel"><h2>Settings</h2>
  <section class="settings-section"><h3>Notifications</h3><label class="settings-row"><span><b>Application Status Updates</b><small>Receive updates when your passport application status changes.</small></span><input class="settings-toggle" type="checkbox" ${setting('statusUpdates',true)?'checked':''} aria-label="Application Status Updates" onchange="saveSetting('statusUpdates',this.checked)"></label><label class="settings-row"><span><b>Email Notifications</b><small>Receive important MyBAI notifications by email.</small></span><input class="settings-toggle" type="checkbox" ${setting('emailNotifications',true)?'checked':''} aria-label="Email Notifications" onchange="saveSetting('emailNotifications',this.checked)"></label></section>
  <section class="settings-section"><h3>Account Security</h3><button class="settings-action" onclick="go('change-email')"><span><b>Change Email Address</b><small>Update the email used to sign in and receive OTPs.</small></span><span class="settings-arrow">›</span></button><button class="settings-action" onclick="logout()"><span><b>Sign Out</b><small>Sign out of your current MyBAI session.</small></span><span class="settings-arrow">›</span></button></section>
- <section class="settings-section"><h3>Privacy</h3><button class="settings-action" onclick="alert('Privacy Policy')"><span><b>Privacy Policy</b><small>Review how your personal information is handled.</small></span><span class="settings-arrow">›</span></button></section>
+ <section class="settings-section"><h3>Privacy</h3><button class="settings-action" onclick="go('privacy-policy')"><span><b>Privacy Policy</b><small>Review how your personal information is handled.</small></span><span class="settings-arrow">›</span></button></section>
  <section class="settings-section danger-section"><h3>Account</h3><button class="settings-action danger" onclick="deleteAccount()"><span><b>Delete Account</b><small>This will remove your MyBAI account and linked applications from this demo.</small></span><span class="settings-arrow">›</span></button></section>
- </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span>Privacy Policy　|　Terms & Conditions</span></footer></div>`;
+ </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
 
 
@@ -871,7 +970,7 @@ function memberShell(inner,active='help'){
   const navSettings=active==='settings'?'active':'';
   return `<div class="dashboard"><aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav"><button onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button class="${navProfile}" onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button class="${navStatus}" onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button class="${navSettings}" onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button></nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
  <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions"><button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${unread?`<span class="badge">${Math.min(unread,9)}</span>`:`${notificationBadgeHtml()}`}</button><span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span><div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile');closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div></div></header>
- <main class="content">${inner}</main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span>Privacy Policy　|　Terms & Conditions</span></footer></div>`;
+ <main class="content">${inner}</main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
 
 function helpCenter(){
@@ -1130,7 +1229,7 @@ function login(){
        <button type="button" class="social-btn" onclick="demoLogin()" aria-label="Sign in with X" title="X"><i class="fa-brands fa-x-twitter"></i></button>
      </div>
      <button class="primary" onclick="go('signup')">Create Account</button>
-     <div class="terms">By signing in, you agree to our <a href="#" onclick="return false">Terms of Use</a> and <a href="#" onclick="return false">Privacy Policy</a>.</div>
+     <div class="terms">By signing in, you agree to our <a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms of Use</a> and <a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>.</div>
    </div></section>
    <section class="login-visual" aria-label="BAI Passport Tracking System"></section>
  </div>`;
@@ -1358,7 +1457,7 @@ function minorRegister(){
      <div class="field"><label>First Name</label><input id="minorFirstName" autocomplete="given-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
      <div class="field"><label>Last Name</label><input id="minorLastName" autocomplete="family-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
      <div class="field"><label>Gender</label><select id="minorGender"><option value="" disabled selected hidden>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-     <div class="field"><label>Date of Birth</label><input id="minorDob" type="date" aria-label="Date of Birth"></div>
+     <div class="field"><label>Date of Birth</label><div class="date-select-group"><select id="minorDobMonth" aria-label="Birth month" onchange="syncAccountDate('minorDob')"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select><select id="minorDobDay" aria-label="Birth day" onchange="syncAccountDate('minorDob')"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select><select id="minorDobYear" aria-label="Birth year" onchange="syncAccountDate('minorDob')"><option value="">Year</option></select></div><input id="minorDob" type="hidden" aria-label="Date of Birth"></div>
      <div class="field"><label>E-Mail</label><input id="minorEmail" type="email" placeholder="example@example.com" autocomplete="email"></div>
      <div class="field full"><label>Guardian E-Mail</label><input id="guardianEmail" type="email" placeholder="example@example.com" autocomplete="email"></div>
    </div>
@@ -1620,6 +1719,20 @@ function clearPendingLoginData(){
 
 /* New-account creation: use a persistent pending record so verification is not
    incorrectly treated as an expired registration when the page rerenders. */
+function populateAccountBirthYears(){
+  const currentYear=new Date().getFullYear();
+  ['adultDobYear','minorDobYear'].forEach(id=>{const select=document.getElementById(id);if(!select||select.options.length>1)return;for(let year=currentYear;year>=1900;year--){const option=document.createElement('option');option.value=String(year);option.textContent=String(year);select.appendChild(option);}});
+}
+function syncAccountDate(prefix){
+  const month=document.getElementById(prefix+'Month')?.value||'';
+  const day=document.getElementById(prefix+'Day')?.value||'';
+  const year=document.getElementById(prefix+'Year')?.value||'';
+  const hidden=document.getElementById(prefix);
+  if(hidden) hidden.value=(month&&day&&year)?`${year}-${month}-${day}`:'';
+  const daySelect=document.getElementById(prefix+'Day');
+  if(daySelect){const max=(month&&year)?new Date(Number(year),Number(month),0).getDate():31;Array.from(daySelect.options).forEach((option,index)=>{if(index>0)option.disabled=Number(option.value)>max;});if(daySelect.value&&Number(daySelect.value)>max)daySelect.value='';}
+  if(hidden) hidden.dispatchEvent(new Event('input',{bubbles:true}));
+}
 function createAccount(type){
   const emailId=type==='adult'?'adultEmail':'guardianEmail';
   if(!validateCreateAccount(type)) return;
@@ -1657,6 +1770,16 @@ function createAccount(type){
 
 /* Unified render registry retains Module 2 routes while using the stable OTP
    handlers above. */
+function legalPageShell(title, body){
+ return `<div class="auth-screen terminal-auth legal-screen"><div class="auth-card legal-card"><button class="link-btn legal-back" onclick="go(sessionStorage.getItem('baiLoggedIn')==='true'?'dashboard':'login')">← Back</button><h1>${title}</h1><p class="legal-updated">Last updated: October 24, 2026</p>${body}<div class="legal-actions"><button class="primary" onclick="go(sessionStorage.getItem('baiLoggedIn')==='true'?'dashboard':'login')">Return to Website</button></div></div></div>`;
+}
+function privacyPolicy(){
+ return legalPageShell('PRIVACY POLICY', `<section class="legal-section"><h2>1. About this website</h2><p>Bisaya Airlines International (BAI) Passport Tracking System is a demonstration/prototype website for a project. Unless expressly stated otherwise, it is not an official Philippine Department of Foreign Affairs (DFA) service and does not submit applications to, or retrieve live records from, the DFA.</p></section><section class="legal-section"><h2>2. Information you may enter</h2><p>The prototype may ask for information such as your name, contact details, date of birth, application reference, passport-related details, and files you choose to upload. Use fictional or test information only. Do not enter real passport numbers, government ID details, passwords, or other sensitive personal information in a demonstration environment.</p></section><section class="legal-section"><h2>3. How information is used</h2><p>Information entered is used to demonstrate account registration, application forms, application linking, status tracking, and support workflows. Status changes and sample processing timelines may be simulated and should not be treated as official application updates.</p></section><section class="legal-section"><h2>4. Storage and sharing</h2><p>Depending on the feature, prototype data may be stored in your browser's local storage or session storage on the device you are using. It may remain on that device after you close a page, and it is not necessarily transmitted to or securely maintained by a production server. Avoid using shared devices for test data and clear browser site data when you want to remove locally stored prototype information. Do not assume data is encrypted, backed up, or accessible across devices.</p><p>This prototype is not intended to sell personal information or share it with third parties. Because it is a demonstration and may be hosted in a development environment, do not submit real personal or confidential information.</p></section><section class="legal-section"><h2>5. Security and retention</h2><p>Reasonable care should be taken when testing the site, but a prototype cannot guarantee confidentiality, availability, or security. Data may be lost, reset, or exposed through the device, browser, hosting configuration, or other development tools. Retention depends on the browser storage and how the prototype is configured.</p></section><section class="legal-section"><h2>6. Children and guardian information</h2><p>Some demo screens may represent a minor-registration flow. Use test data only. This prototype is not designed to collect or process children's real personal information.</p></section><section class="legal-section"><h2>7. Your choices</h2><p>You can stop using the prototype at any time and clear its site data through your browser settings. If this project is later deployed for real users, the project owner should provide a verified contact method and update this policy to explain the actual data controller, lawful basis, retention period, security measures, and rights request process.</p></section><section class="legal-section"><h2>8. Changes and contact</h2><p>This policy may be updated as the prototype changes. No operational privacy contact is specified for this demonstration. For a production launch, replace this statement with the responsible organization's verified contact details.</p></section>`);
+}
+function termsConditions(){
+ return legalPageShell('TERMS & CONDITIONS', `<section class="legal-section"><h2>1. Acceptance and purpose</h2><p>By using the BAI Passport Tracking System prototype, you agree to these terms. The website is provided for educational, demonstration, and testing purposes only.</p></section><section class="legal-section"><h2>2. Not an official government service</h2><p>This prototype is not represented as an official DFA website, is not endorsed by the DFA, and is not connected to official DFA systems unless a future version clearly states otherwise. Submitting information here does not create an official passport application, appointment, or government record. Use the official DFA channels for actual passport services.</p></section><section class="legal-section"><h2>3. Demo applications and statuses</h2><p>Application forms, reference numbers, linked applications, administrative decisions, and status timelines are illustrative. Statuses such as Approved, Processing, Ready for Release, and Released / Collected may be simulated automatically and do not confirm that a real passport has been approved, produced, or released. No processing time or outcome is guaranteed.</p></section><section class="legal-section"><h2>4. Acceptable use</h2><p>Use the prototype lawfully and only for its intended demonstration. Do not attempt to disrupt the site, access another person's data, upload malicious files, impersonate a government agency or another person, or rely on demo outputs for official decisions.</p></section><section class="legal-section"><h2>5. Accurate and safe test data</h2><p>Use fictional test information wherever possible. Do not submit real passport details, government identification, payment details, or sensitive personal information. You are responsible for the information and files you choose to enter.</p></section><section class="legal-section"><h2>6. Availability and changes</h2><p>The prototype may be changed, reset, interrupted, or made unavailable without notice. Features may be incomplete and stored test data may be deleted. The project provides no guarantee that the website will be error-free or available continuously.</p></section><section class="legal-section"><h2>7. No professional or official advice</h2><p>Content on this prototype is not legal advice, government guidance, or a substitute for current official passport requirements. Verify requirements, fees, appointments, and application status through official DFA sources.</p></section><section class="legal-section"><h2>8. Limitation for prototype use</h2><p>To the extent permitted by applicable law, the project is provided “as is” for demonstration purposes and makes no warranty regarding accuracy, security, availability, or suitability for real passport transactions. Nothing in these terms excludes any rights or obligations that cannot lawfully be excluded.</p></section><section class="legal-section"><h2>9. Updates</h2><p>These terms may be revised as the project evolves. A production deployment should be reviewed for applicable Philippine laws and updated with the responsible organization's legal name, verified contact information, and operational procedures.</p></section>`);
+}
+
 function render(){
   closeMemberNotificationDropdown();
   restorePendingAuthContext();
@@ -1664,17 +1787,19 @@ function render(){
   stopEnquiryRealtime?.();
   const parsed=parseRouteHash();
   const page=parsed.page;
-  const pages={login,'login-verify':loginVerify,signup,'adult-register':adultRegister,'minor-register':minorRegister,'renewal-form':renewalForm,'renewal-continue':renewalContinue,'replacement-form':lostPassportReplacement,'replacement-continue':replacementContinue,verify,created,'new-application':newApplication,'link-application':linkApplication,'application-linked':applicationLinked,complaint,'complaint-done':complaintDone,dashboard,profile,'change-email':changeEmail,status,settings,'help-center':helpCenter,'knowledge-base':knowledgeBase,'knowledge-article':knowledgeArticle,'ai-chat':aiChat,'enquiry-form':enquiryForm,'enquiry-submitted':enquirySubmitted,enquiries,'enquiry-view':enquiryView};
+  const pages={login,'privacy-policy':privacyPolicy,'terms-conditions':termsConditions,'login-verify':loginVerify,signup,'adult-register':adultRegister,'minor-register':minorRegister,'renewal-form':renewalForm,'renewal-continue':renewalContinue,'replacement-form':lostPassportReplacement,'replacement-continue':replacementContinue,verify,created,'new-application':newApplication,'link-application':linkApplication,'application-linked':applicationLinked,complaint,'complaint-done':complaintDone,dashboard,profile,'change-email':changeEmail,status,settings,'help-center':helpCenter,'knowledge-base':knowledgeBase,'knowledge-article':knowledgeArticle,'ai-chat':aiChat,'enquiry-form':enquiryForm,'enquiry-submitted':enquirySubmitted,enquiries,'enquiry-view':enquiryView};
   const protectedPages=new Set(['dashboard','profile','status','settings','change-email','renewal-form','renewal-continue','replacement-form','replacement-continue','new-application','link-application','application-linked','help-center','knowledge-base','knowledge-article','ai-chat','enquiry-form','enquiry-submitted','enquiries','enquiry-view','complaint','complaint-done']);
   if(protectedPages.has(page) && sessionStorage.getItem('baiLoggedIn')!=='true'){
     location.hash='login';
     return;
   }
   app.innerHTML=(pages[page]||login)();
+  runPassportStatusSimulation();
   document.querySelectorAll('.profile-avatar').forEach(el=>{el.setAttribute('role','button');el.setAttribute('tabindex','0');el.onclick=toggleUserMenu;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleUserMenu(e);}};});
   (function(){const a=document.querySelector('.nav button.active');if(!a)return;const prev=parseFloat(sessionStorage.getItem('baiNavTop')||'');const cur=a.offsetTop;sessionStorage.setItem('baiNavTop',String(cur));if(!isNaN(prev)&&prev!==cur&&a.animate){a.animate([{transform:'translateY('+(prev-cur)+'px)'},{transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.4,0,.2,1)'});}})();
-  if(page==='adult-register'||page==='minor-register') wireCreateAccountValidation();
+  if(page==='adult-register'||page==='minor-register'){ populateAccountBirthYears(); wireCreateAccountValidation(); }
   if(page==='renewal-form'||page==='replacement-form') wireUploadInputs(document.querySelector('.renewal-card'));
+  if(page==='renewal-form'){wireRenewalUploadControls();document.querySelectorAll('.renewal-step-content input[type=date]').forEach(el=>el.max=new Date().toISOString().slice(0,10));document.querySelectorAll('.renewal-step-content [data-renewal-field]').forEach(el=>{if(el.type!=='file'&&el.type!=='checkbox'&&el.tagName!=='SELECT'&&el.value)el.value=el.value;});updateRenewalFeePreview();}
   if(page==='verify'&&sessionStorage.getItem('baiRegistrationOtpSent')==='true') startOtpCooldown('registration');
   if(page==='login-verify'&&sessionStorage.getItem('baiLoginOtpSent')==='true') startOtpCooldown('login');
   if(page==='change-email'&&sessionStorage.getItem('baiEmailChangeOtpSent')==='true') startEmailChangeCooldown();
@@ -1862,6 +1987,7 @@ function socialLogin(provider){
 function demoLogin(){
   sessionStorage.setItem('baiAccountEmail','demo.user@bai.com');
   sessionStorage.setItem('baiAccountName','MyBAI User');
+  sessionStorage.setItem('baiAccountCivilStatus','Single');
   sessionStorage.setItem('baiLoggedIn','true');
   go('dashboard');
 }
@@ -1937,3 +2063,6 @@ function proceedAfterCreated(){
 
 window.addEventListener('hashchange',render);
 render();
+
+// Populate year choices whenever account-registration fields are present.
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',populateAccountBirthYears);}else{populateAccountBirthYears();}

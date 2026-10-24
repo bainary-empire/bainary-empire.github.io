@@ -1002,3 +1002,272 @@ body .upload-box{border-radius:0 !important}
   .login-screen{ grid-template-columns:1fr; padding:16px; }
   .login-visual{ min-height:320px; }
 }
+/* Passport Renewal wizard only — scoped to renewal pages to preserve all other screens. */
+.renewal-wizard-screen{align-items:flex-start;padding:28px 16px 36px;overflow-y:auto}
+.renewal-wizard-card{width:min(850px,96vw);min-height:0!important;padding:30px 34px 26px;margin:0 auto 24px;display:block}
+.renewal-wizard-card>.form-title-row{padding:4px 0 14px;border-bottom:1px solid #e4eaf2;margin:0 0 18px}
+.renewal-wizard-card .form-title-row h1{font-weight:700;letter-spacing:.02em}
+.renewal-progress{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:8px 0 24px}
+.renewal-progress-item{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;color:#68778c;font-size:12px;min-width:0}
+.renewal-progress-item:before{content:"";position:absolute;top:17px;left:-54%;width:108%;height:2px;background:#d9e1ec;z-index:0}
+.renewal-progress-item:first-child:before{display:none}
+.renewal-progress-item span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;border:2px solid #c6d2e1;background:#fff;color:#60718a;font-weight:700;z-index:1}
+.renewal-progress-item.active span,.renewal-progress-item.complete span{background:#123f78;border-color:#123f78;color:#fff}
+.renewal-progress-item.complete:before,.renewal-progress-item.active:before{background:#123f78}
+.renewal-progress-item small{font-size:11px;line-height:1.25;max-width:125px}
+.renewal-progress-item.active small{font-weight:700;color:#123f78}
+.renewal-step-heading{margin-bottom:18px}
+.renewal-step-heading>span{font-size:11px;letter-spacing:.12em;font-weight:700;color:#426b9b}
+.renewal-step-heading h2{font-size:24px;color:#172a43;margin:4px 0 0}
+.renewal-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 18px}
+.renewal-form-grid .field{min-width:0}
+.renewal-form-grid .field.full{grid-column:1/-1}
+.renewal-wizard-card .field label{display:block;font-size:13px;font-weight:600;color:#29384b;margin-bottom:6px}
+.renewal-wizard-card .field input:not([type=checkbox]):not([type=radio]),.renewal-wizard-card .field select{width:100%;height:43px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:9px 11px;color:#1d2939;font:inherit;box-sizing:border-box}
+.renewal-required{color:#c62828;font-weight:700}
+.renewal-reason-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.renewal-reason-options label{display:flex!important;align-items:center;gap:8px;border:1px solid #d4deea;border-radius:9px;padding:12px;background:#f8fbff;min-height:54px;cursor:pointer}
+.renewal-reason-options input{accent-color:#123f78}
+.renewal-help{font-size:12px;color:#68778a;margin:5px 0 0}
+.renewal-wizard-card .upload-box{box-sizing:border-box;border-radius:9px;min-height:76px;background:#f8fbff}
+.renewal-fee-hint{font-size:12px;color:#52657d;margin:8px 0 0}
+.renewal-subheading{font-size:15px;color:#203b5c;margin:2px 0 0;padding-bottom:7px;border-bottom:1px solid #e4eaf2}
+.renewal-oath{border:1px solid #d7e1ee;background:#f8fbff;border-radius:10px;padding:22px;line-height:1.65;color:#35465b}
+.renewal-oath h3{margin:0 0 10px;color:#183b67}
+.renewal-oath-check{display:flex;align-items:flex-start;gap:9px;margin-top:20px;font-weight:600}
+.renewal-oath-check input{margin-top:4px;accent-color:#123f78}
+.renewal-signature-field{margin-top:18px}
+.renewal-total-card{border:1px solid #cfdae8;border-radius:12px;padding:17px;background:#f7faff}
+.renewal-total-card>div{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid #e2e9f2;font-size:14px}
+.renewal-total-card .renewal-grand-total{font-size:17px;color:#123f78;border-bottom:0;padding-top:14px}
+.renewal-total-card p{font-size:12px;color:#5c6e83;margin:6px 0 0}
+.renewal-review-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.renewal-review-summary>div{display:flex;flex-direction:column;gap:4px;padding:11px;border:1px solid #e1e8f0;border-radius:8px;min-width:0}
+.renewal-review-summary span{font-size:11px;color:#68778a}
+.renewal-review-summary strong{font-size:13px;overflow-wrap:anywhere;color:#23354c}
+.renewal-step-actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px;padding-top:18px;border-top:1px solid #e4eaf2}
+.renewal-step-actions button{min-width:130px;min-height:42px}
+.renewal-form-footnote{font-size:11px;color:#7b8797;margin:13px 0 0}
+.renewal-inline-error{padding:10px 12px;border-radius:8px;background:#fff0f0;border:1px solid #f1b8b8;color:#a32020;font-size:13px;margin:0 0 14px}
+@media(max-width:650px){.renewal-wizard-card{padding:24px 17px}.renewal-form-grid{grid-template-columns:1fr}.renewal-form-grid .field.full{grid-column:auto}.renewal-reason-options{grid-template-columns:1fr}.renewal-progress{gap:3px}.renewal-progress-item small{font-size:9px}.renewal-progress-item span{width:30px;height:30px}.renewal-progress-item:before{top:14px}.renewal-review-summary{grid-template-columns:1fr}.renewal-step-actions button{min-width:0;flex:1}}
+.renewal-remove-file{position:absolute;right:8px;bottom:6px;border:1px solid #c9d5e3;background:#fff;color:#8b2020;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;z-index:2}
+.renewal-wizard-card .upload-box{position:relative;padding-bottom:18px}
+/* Passport renewal usability refinements */
+.renewal-field-error{display:block;color:#b42318;font-size:12px;line-height:1.35;margin-top:5px;font-weight:600}
+.renewal-field-error[hidden]{display:none}
+.renewal-invalid{border-color:#c62828!important;box-shadow:0 0 0 2px rgba(198,40,40,.10)!important}
+.renewal-date-parts{display:grid;grid-template-columns:1.35fr .75fr .9fr;gap:8px;margin-top:4px}
+.renewal-date-parts select{width:100%;min-width:0}
+.renewal-review-summary{grid-template-columns:repeat(2,minmax(0,1fr));max-height:560px;overflow:auto;padding-right:3px}
+@media(max-width:650px){.renewal-date-parts{grid-template-columns:1fr 1fr}.renewal-date-parts select:last-child{grid-column:1/-1}.renewal-review-summary{grid-template-columns:1fr}}
+
+/* Account creation date dropdowns: give each control enough room and align with standard fields. */
+.date-select-group{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(76px,.8fr) minmax(0,1.1fr);gap:8px;width:100%;min-width:0;align-items:center;}
+.registration-card .date-select-group select{box-sizing:border-box;display:block;min-width:0;width:100%;height:37px;margin:0;padding:0 9px;border-radius:7px;font-size:14px;line-height:normal;white-space:nowrap;}
+/* Adult registration's DOB gets two grid columns so month/day/year are not compressed. */
+.adult-grid .field:nth-child(4){grid-column:2 / 4;}
+.adult-grid .field:nth-child(5){grid-column:1 / -1;}
+@media(max-width:520px){.date-select-group{grid-template-columns:minmax(0,1.5fr) minmax(64px,.8fr) minmax(0,1.1fr);gap:6px}.registration-card .date-select-group select{font-size:13px;padding:0 6px;}}
+
+/* Final account-registration DOB layout fix: keep Month, Day, and Year fully readable. */
+.registration-card .date-select-group{
+  display:grid;
+  grid-template-columns:minmax(150px, 1.55fr) minmax(76px, .7fr) minmax(100px, 1fr);
+  gap:10px;
+  width:100%;
+  min-width:0;
+  align-items:center;
+}
+.registration-card .date-select-group select{
+  width:100%;
+  min-width:0;
+  height:37px;
+  box-sizing:border-box;
+  padding:0 12px;
+  font-size:14px;
+  line-height:normal;
+  white-space:nowrap;
+}
+.adult-grid .field:nth-child(4){grid-column:2 / 4!important;}
+.minor-grid .field:nth-child(4){grid-column:1 / -1!important;}
+@media(max-width:1100px){
+  .registration-card .date-select-group{grid-template-columns:minmax(0,1.5fr) minmax(68px,.7fr) minmax(86px,1fr);gap:8px;}
+}
+@media(max-width:520px){
+  .registration-card .date-select-group{grid-template-columns:minmax(0,1.4fr) minmax(58px,.65fr) minmax(78px,.9fr);gap:6px;}
+  .registration-card .date-select-group select{padding:0 7px;font-size:13px;}
+}
+
+
+/* Version 10: match registration date dropdown control sizing to the other form inputs. */
+.registration-card .date-select-group {
+  width: 100%;
+  gap: 10px;
+  align-items: stretch;
+}
+.registration-card .date-select-group select {
+  height: 46px !important;
+  min-height: 46px;
+  padding: 0 12px !important;
+  font-size: 16px !important;
+  line-height: 1.2;
+  border-radius: 7px;
+  box-sizing: border-box;
+}
+@media (max-width: 520px) {
+  .registration-card .date-select-group { gap: 8px; }
+  .registration-card .date-select-group select { font-size: 14px !important; padding: 0 8px !important; }
+}
+
+
+/* Registration DOB dropdown consistency: match standard input dimensions while keeping labels readable. */
+.registration-card .date-select-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) minmax(0, 1.1fr);
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+}
+.registration-card .date-select-group select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 37px !important;
+  min-height: 37px !important;
+  margin: 0;
+  padding: 0 8px !important;
+  font-size: 14px !important;
+  line-height: normal;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .registration-card .date-select-group {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.75fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+  .registration-card .date-select-group select {
+    padding: 0 6px !important;
+    font-size: 13px !important;
+  }
+}
+
+
+/* Check Status: display passport progress as a horizontal stepper. */
+.status-timeline{
+  display:flex;
+  align-items:flex-start;
+  gap:0;
+  padding:18px 0 12px;
+  overflow-x:auto;
+}
+.status-timeline .timeline-step{
+  flex:1 0 0;
+  min-width:110px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  gap:7px;
+  padding:0 7px;
+  position:relative;
+}
+.status-timeline .timeline-step:not(:last-child):after{
+  content:"";
+  position:absolute;
+  left:calc(50% + 12px);
+  top:9px;
+  width:calc(100% - 24px);
+  height:2px;
+  background:#ddd;
+}
+.status-timeline .timeline-step.done:not(:last-child):after{background:#79e57d}
+.status-timeline .timeline-step>span{
+  width:20px;
+  height:20px;
+  flex:0 0 20px;
+  font-size:11px;
+}
+.status-timeline .timeline-step b{font-size:12px;line-height:1.3}
+.status-timeline .timeline-step small{font-size:10px;line-height:1.35;max-width:150px}
+@media(max-width:600px){
+  .status-timeline{justify-content:flex-start}
+  .status-timeline .timeline-step{flex:0 0 112px;min-width:112px}
+}
+
+/* Renewal upload fields: center the upload icon and content vertically. */
+.renewal-wizard-card .upload-box{padding-bottom:0}
+
+
+/* Renewal document upload: place the cloud icon at the true geometric center of the field. */
+.renewal-wizard-card .upload-box .upload-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  line-height: 0;
+}
+.renewal-wizard-card .upload-box .upload-icon svg {
+  display: block;
+}
+
+
+/* Renewal wizard: keep the Dashboard button clear of the passport icon and heading. */
+.renewal-wizard-card { padding-top: 64px; position: relative; }
+.renewal-wizard-card > .auth-back-form { top: 14px; left: auto; right: 34px; }
+@media (max-width: 650px) {
+  .renewal-wizard-card { padding-top: 64px; }
+  .renewal-wizard-card > .auth-back-form { right: 17px; }
+}
+
+
+/* Passport Renewal pages: show the full background image without cover-cropping. */
+.terminal-auth.renewal-wizard-screen { background-image: url("assets/renewal-terminal-bg-1920x1080.png"); background-size: cover; background-position: center center; background-repeat: no-repeat; background-attachment: scroll; }
+
+
+/* New Passport Application: move Back button away from the brand logo. */
+.new-application-card { padding-top: 64px; position: relative; }
+.new-application-card > .auth-back-form { top: 14px; left: auto; right: 34px; }
+@media (max-width: 650px) {
+  .new-application-card { padding-top: 64px; }
+  .new-application-card > .auth-back-form { right: 17px; }
+}
+
+/* Privacy Policy and Terms & Conditions pages */
+.footer a{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.footer a:hover{color:#27354e}
+.legal-screen{align-items:flex-start;overflow-y:auto;padding:32px 16px}
+.legal-card{width:min(900px,100%);max-width:900px;max-height:none;overflow:visible;padding:34px 40px}
+.legal-card h1{margin:12px 0 4px;font-size:clamp(24px,3vw,34px);color:#27354e}
+.legal-updated{margin:0 0 24px;color:#6c7789;font-size:12px}
+.legal-section{margin:0 0 20px}
+.legal-section h2{font-size:16px;margin:0 0 8px;color:#27354e}
+.legal-section p{font-size:13px;line-height:1.75;color:#4c5668;margin:0 0 10px}
+.legal-back{display:inline-flex;align-items:center;margin-bottom:6px}
+.legal-actions{display:flex;justify-content:flex-end;border-top:1px solid #e6e9ef;padding-top:20px;margin-top:24px}
+.agreement a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+@media(max-width:640px){.legal-card{padding:24px 18px}.legal-screen{padding:14px 10px}}
+
+
+/* Legal pages: display Back as an outlined button, not an underlined link. */
+.legal-card .legal-back {
+  border: 1px solid #27354e;
+  border-radius: 7px;
+  background: #fff;
+  color: #27354e;
+  padding: 7px 12px;
+  min-height: 36px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.legal-card .legal-back:hover {
+  background: #f4eee2;
+  text-decoration: none;
+}
