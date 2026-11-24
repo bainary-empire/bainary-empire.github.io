@@ -1,171 +1,304 @@
+/**
+ * BAI Passport Tracking System — MyBAI Member Portal (script.js)
+ *
+ * Single-page client-side application for passport applicants.
+ *
+ * Key Storage Architecture (shared across same-origin portals):
+ *  - localStorage:
+ *      `baiAccountRegistry`        — Persistent member accounts
+ *      `baiApplications_<memberId>`— Passport applications per member (read/reviewed by Admin Portal)
+ *      `baiHelpKnowledgeBase`      — Articles, FAQs & advisories (managed by Personnel Portal)
+ *      `baiHelpEnquiries`          — Support enquiries & threads (shared with Personnel & Admin)
+ *      `baiHelpEnquirySequence`    — Sequential counter for `ENQ-000000001` IDs
+ *      `baiHelpConversations`      — AI Assistant chat transcripts
+ *      `baiHelpNotifications`      — Cross-portal in-app notifications for members
+ *      `baiSetting_<memberId>_*`   — Per-member notification preferences
+ *  - sessionStorage:
+ *      Active login session (`baiLoggedIn`, `baiAccountId`, `baiAccountEmail`, `baiAccountName`),
+ *      multi-step wizard drafts (`baiRenewalDraft`, `baiNewPassportDraft`, `baiAdultDraft`, `baiMinorDraft`),
+ *      and simulated 7-digit OTP verification state.
+ *  - IndexedDB:
+ *      `baiSupportAttachments` (`files` store) — Binary Blobs for enquiry file attachments.
+ */
 
-
-const DEFAULT_ACCOUNTS=[
- {id:'PERS-0001',email:'support@bai.local',password:'BAI-support',name:'BAI Support Personnel',role:'Personnel',status:'Active',mustChangePassword:false,contact:''},
- {id:'PERS-0002',email:'maria.santos@bai.local',password:'BAI-support2',name:'Maria Santos',role:'Personnel',status:'Active',mustChangePassword:false,contact:''}
-];
-
+/* ==========================================================================
+   1. App Root, Navigation & HTML Escaping
+   ========================================================================== */
 const app = document.getElementById('app');
 let enquiryRealtimeTimer = null;
 let enquiryRealtimeSignature = '';
 let enquiryRealtimeStorageHandler = null;
 
-function getRegistrationPageType(){
-  const page=(location.hash||'#login').slice(1);
-  if(page==='adult-register') return 'adult';
-  if(page==='minor-register') return 'minor';
-  return null;
+/** Navigates to a hash route, re-renders `#app`, and resets scroll position. */
+function go(page) {
+  location.hash = page;
+  render();
+  window.scrollTo(0, 0);
 }
-function go(page){
-  //const currentType=getRegistrationPageType();
-  //if(currentType) saveRegistrationDraft(currentType);
-  location.hash = page; render(); window.scrollTo(0,0);
-	}
-function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
+/** Escapes special HTML characters before interpolating user data into templates. */
+function esc(v) {
+  return String(v).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]));
+}
+
+/* ==========================================================================
+   2. Persistent Account Registry & Session Helpers
+   ========================================================================== */
 window.baiUploadFiles = window.baiUploadFiles || {};
-/* Persistent MyBAI account registry: account identity survives a fresh website session. */
+
 const BAI_ACCOUNT_REGISTRY_KEY = 'baiAccountRegistry';
-function accountEmail(){ return (sessionStorage.getItem('baiAccountEmail')||'').trim(); }
-function accountName(){ return sessionStorage.getItem('baiAccountName') || 'MyBAI User'; }
-function getAccountRegistry(){ try{ const raw=localStorage.getItem(BAI_ACCOUNT_REGISTRY_KEY); const data=raw?JSON.parse(raw):[]; return Array.isArray(data)?data:[]; }catch(e){ return []; } }
-function saveAccountRegistry(accounts){ localStorage.setItem(BAI_ACCOUNT_REGISTRY_KEY,JSON.stringify(accounts)); }
-function normalizeAccountEmail(email){ return String(email||'').trim().toLowerCase(); }
-function findAccountByEmail(email){ const target=normalizeAccountEmail(email); return getAccountRegistry().find(a=>normalizeAccountEmail(a.email)===target)||null; }
-function currentAccount(){
-  const id=sessionStorage.getItem('baiAccountId')||'';
-  if(id){
-    const account=getAccountRegistry().find(a=>a.id===id);
-    if(account) return account;
+
+function accountEmail() {
+  return (sessionStorage.getItem('baiAccountEmail') || '').trim();
+}
+
+function accountName() {
+  return sessionStorage.getItem('baiAccountName') || 'MyBAI User';
+}
+
+function getAccountRegistry() {
+  try {
+    const raw = localStorage.getItem(BAI_ACCOUNT_REGISTRY_KEY);
+    const data = raw ? JSON.parse(raw) : [];
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    return [];
   }
-  const email=accountEmail();
-  return email?findAccountByEmail(email):null;
 }
-function accountExists(email){ return !!findAccountByEmail(email) || (!!accountEmail() && normalizeAccountEmail(accountEmail())===normalizeAccountEmail(email)); }
 
-function getApplicationsSafeForAccount(){ try{return JSON.parse(sessionStorage.getItem('baiApplications')||'[]');}catch(e){return [];} }
+function saveAccountRegistry(accounts) {
+  localStorage.setItem(BAI_ACCOUNT_REGISTRY_KEY, JSON.stringify(accounts));
+}
 
-function migrateLoggedInAccountToRegistry(){ if(sessionStorage.getItem('baiRegistrationPending')==='true') return; if(sessionStorage.getItem('baiLoggedIn')==='true' && accountEmail() && sessionStorage.getItem('baiAccountId') && !findAccountByEmail(accountEmail())) saveCurrentAccountToRegistry(); }
+function normalizeAccountEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
 
+function findAccountByEmail(email) {
+  const target = normalizeAccountEmail(email);
+  return getAccountRegistry().find(a => normalizeAccountEmail(a.email) === target) || null;
+}
 
-function calculateAge(value){
- const dob=new Date(value+'T00:00:00'); if(Number.isNaN(dob.getTime())) return null;
- const today=new Date(); let age=today.getFullYear()-dob.getFullYear();
- const m=today.getMonth()-dob.getMonth(); if(m<0 || (m===0 && today.getDate()<dob.getDate())) age--;
- return age;
+function currentAccount() {
+  const id = sessionStorage.getItem('baiAccountId') || '';
+  if (id) {
+    const account = getAccountRegistry().find(a => a.id === id);
+    if (account) return account;
+  }
+  const email = accountEmail();
+  return email ? findAccountByEmail(email) : null;
 }
-function uploadBox(id,label, extraClass=''){
- return `<label class="upload-box ${extraClass}" for="${id}"><input id="${id}" type="file" accept="image/*,.pdf"><span class="upload-icon">${uploadIcon()}</span><span class="upload-label">${label}</span><span class="upload-file-name"></span></label>`;
+
+function getApplicationsSafeForAccount() {
+  try {
+    return JSON.parse(sessionStorage.getItem('baiApplications') || '[]');
+  } catch (e) {
+    return [];
+  }
 }
-function wireUploadInputs(scope){
- const root=scope||document;
- root.querySelectorAll('.upload-box input[type=file]').forEach(input=>{
-   const saved=window.baiUploadFiles[input.id];
-   const nameEl=input.closest('.upload-box')?.querySelector('.upload-file-name');
-   if(saved?.name && nameEl){ nameEl.textContent=saved.name; input.closest('.upload-box').classList.add('has-file'); }
-   input.addEventListener('change',()=>{
-     const file=input.files?.[0]; if(file){ window.baiUploadFiles[input.id]=file; }
-     const box=input.closest('.upload-box'); const n=box?.querySelector('.upload-file-name');
-     if(n) n.textContent=file?.name||'';
-     if(box) {
-       box.classList.toggle('has-file',!!file);
-       if(file) {
-         box.classList.remove('upload-invalid');
-         box.querySelector('.field-error')?.remove();
-       }
-     }
-     const form=box?.closest('.registration-card');
-     if(form){
-       const type=form.classList.contains('minor-card')?'minor':(form.classList.contains('renewal-card')?'renewal':'adult');
-       if(type==='adult'||type==='minor') saveRegistrationDraft(type);
-     }
-     input.closest('.field')?.querySelector('.field-error')?.remove();
-   });
- });
+
+/** Ensures an active session account is persisted in `baiAccountRegistry`. */
+function migrateLoggedInAccountToRegistry() {
+  if (sessionStorage.getItem('baiRegistrationPending') === 'true') return;
+  if (
+    sessionStorage.getItem('baiLoggedIn') === 'true' &&
+    accountEmail() &&
+    sessionStorage.getItem('baiAccountId') &&
+    !findAccountByEmail(accountEmail())
+  ) {
+    saveCurrentAccountToRegistry();
+  }
 }
-function validateUpload(id,message){
- const input=document.getElementById(id); const hasFile=!!(input?.files?.length || window.baiUploadFiles[id]);
- if(!hasFile){
-   const host=input?.closest('.upload-box');
-   if(host){ host.classList.add('upload-invalid'); if(!host.querySelector('.field-error')){ const e=document.createElement('div'); e.className='field-error upload-error'; e.textContent=message; host.appendChild(e); } }
-   return false;
- }
- const host=input?.closest('.upload-box'); host?.classList.remove('upload-invalid'); host?.querySelector('.field-error')?.remove();
- return true;
+
+/* ==========================================================================
+   3. Age Calculation & Reusable File Upload Widgets
+   ========================================================================== */
+
+/** Computes age in full years from a `YYYY-MM-DD` date string. */
+function calculateAge(value) {
+  const dob = new Date(value + 'T00:00:00');
+  if (Number.isNaN(dob.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
 }
-function clearUploadError(id){ const input=document.getElementById(id); const host=input?.closest('.upload-box'); host?.classList.remove('upload-invalid'); host?.querySelector('.field-error')?.remove(); }
-function statusLabel(status){
- const s=String(status||'').trim().toUpperCase().replace(/[_-]+/g,' ');
- if(['SUBMITTED','PENDING'].includes(s)) return s==='PENDING'?'PENDING':'SUBMITTED';
- if(['UNDER REVIEW','IN REVIEW'].includes(s)) return 'UNDER REVIEW';
- if(s==='APPROVED') return 'APPROVED';
- if(s==='PROCESSING') return 'PROCESSING';
- if(['PASSPORT PRINTED','PRINTED'].includes(s)) return 'PASSPORT PRINTED';
- if(['READY FOR RELEASE','READY FOR PICKUP'].includes(s)) return 'READY FOR RELEASE';
- if(s==='COMPLETED') return 'COMPLETED';
- if(['RELEASED','COLLECTED','RELEASED / COLLECTED'].includes(s)) return 'RELEASED / COLLECTED';
- if(['REJECTED','CANCELLED','CANCELED'].includes(s)) return s==='CANCELED'?'CANCELLED':s;
- return s || 'PROCESSING';
+
+/** Renders a styled drag/click upload box backed by `window.baiUploadFiles[id]`. */
+function uploadBox(id, label, extraClass = '') {
+  return `<label class="upload-box ${extraClass}" for="${id}"><input id="${id}" type="file" accept="image/*,.pdf"><span class="upload-icon">${uploadIcon()}</span><span class="upload-label">${label}</span><span class="upload-file-name"></span></label>`;
 }
-function applicationStatus(app){
- return app?.type==='Passport Renewal'?(app.renewalStatus||app.status||'Pending'):(app?.status||'Pending');
+
+/** Attaches file-selection listeners and restores filenames selected earlier in the session. */
+function wireUploadInputs(scope) {
+  const root = scope || document;
+  root.querySelectorAll('.upload-box input[type=file]').forEach(input => {
+    const saved = window.baiUploadFiles[input.id];
+    const nameEl = input.closest('.upload-box')?.querySelector('.upload-file-name');
+    if (saved?.name && nameEl) {
+      nameEl.textContent = saved.name;
+      input.closest('.upload-box').classList.add('has-file');
+    }
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (file) window.baiUploadFiles[input.id] = file;
+      const box = input.closest('.upload-box');
+      const n = box?.querySelector('.upload-file-name');
+      if (n) n.textContent = file?.name || '';
+      if (box) {
+        box.classList.toggle('has-file', !!file);
+        if (file) {
+          box.classList.remove('upload-invalid');
+          box.querySelector('.field-error')?.remove();
+        }
+      }
+      const form = box?.closest('.registration-card');
+      if (form) {
+        const type = form.classList.contains('minor-card')
+          ? 'minor'
+          : (form.classList.contains('renewal-card') ? 'renewal' : 'adult');
+        if (type === 'adult' || type === 'minor') saveRegistrationDraft(type);
+      }
+      input.closest('.field')?.querySelector('.field-error')?.remove();
+    });
+  });
 }
-function timelineFor(status){
- const s=statusLabel(status);
- const stages=[
-  ['Pending','Application submitted and waiting for review.'],
-  ['Under Review','Personnel is checking the application and documents.'],
-  ['Approved','Application has passed the review.'],
-  ['Processing','Passport application is being processed.'],
-  ['Ready for Release','Passport is ready for pickup or dispatch.'],
-  ['Released / Collected','Passport has been handed over to the applicant.']
- ];
- const rejected=['REJECTED','CANCELLED'].includes(s);
- let current=0;
- if(['SUBMITTED','PENDING'].includes(s)) current=0;
- else if(s==='UNDER REVIEW') current=1;
- else if(s==='APPROVED') current=2;
- else if(s==='PROCESSING') current=3;
- else if(['PASSPORT PRINTED','READY FOR RELEASE'].includes(s)) current=4;
- else if(['COMPLETED','RELEASED / COLLECTED'].includes(s)) current=5;
- if(rejected){
-  const outcome=s==='REJECTED'?'Rejected':'Cancelled';
-  return [
-   {title:'Pending',desc:'Application submitted and waiting for review.',done:true,current:false},
-   {title:'Under Review',desc:'Personnel reviewed the application.',done:true,current:false},
-   {title:outcome,desc:s==='REJECTED'?'Application was not accepted. Check the remarks for the reason.':'Application was cancelled.',done:false,current:true}
+
+function validateUpload(id, message) {
+  const input = document.getElementById(id);
+  const hasFile = !!(input?.files?.length || window.baiUploadFiles[id]);
+  if (!hasFile) {
+    const host = input?.closest('.upload-box');
+    if (host) {
+      host.classList.add('upload-invalid');
+      if (!host.querySelector('.field-error')) {
+        const e = document.createElement('div');
+        e.className = 'field-error upload-error';
+        e.textContent = message;
+        host.appendChild(e);
+      }
+    }
+    return false;
+  }
+  const host = input?.closest('.upload-box');
+  host?.classList.remove('upload-invalid');
+  host?.querySelector('.field-error')?.remove();
+  return true;
+}
+
+/* ==========================================================================
+   4. Application Status Normalization & Stepper Timeline
+   ========================================================================== */
+
+/** Normalizes raw status strings into uppercase display badges. */
+function statusLabel(status) {
+  const s = String(status || '').trim().toUpperCase().replace(/[_-]+/g, ' ');
+  if (['SUBMITTED', 'PENDING'].includes(s)) return s === 'PENDING' ? 'PENDING' : 'SUBMITTED';
+  if (['UNDER REVIEW', 'IN REVIEW'].includes(s)) return 'UNDER REVIEW';
+  if (s === 'APPROVED') return 'APPROVED';
+  if (s === 'PROCESSING') return 'PROCESSING';
+  if (['PASSPORT PRINTED', 'PRINTED'].includes(s)) return 'PASSPORT PRINTED';
+  if (['READY FOR RELEASE', 'READY FOR PICKUP'].includes(s)) return 'READY FOR RELEASE';
+  if (s === 'COMPLETED') return 'COMPLETED';
+  if (['RELEASED', 'COLLECTED', 'RELEASED / COLLECTED'].includes(s)) return 'RELEASED / COLLECTED';
+  if (['REJECTED', 'CANCELLED', 'CANCELED'].includes(s)) return s === 'CANCELED' ? 'CANCELLED' : s;
+  return s || 'PROCESSING';
+}
+
+function applicationStatus(app) {
+  return app?.type === 'Passport Renewal'
+    ? (app.renewalStatus || app.status || 'Pending')
+    : (app?.status || 'Pending');
+}
+
+/** Maps an application status onto the 6-stage horizontal stepper timeline (or terminal Rejected/Cancelled path). */
+function timelineFor(status) {
+  const s = statusLabel(status);
+  const stages = [
+    ['Pending', 'Application submitted and waiting for review.'],
+    ['Under Review', 'Personnel is checking the application and documents.'],
+    ['Approved', 'Application has passed the review.'],
+    ['Processing', 'Passport application is being processed.'],
+    ['Ready for Release', 'Passport is ready for pickup or dispatch.'],
+    ['Released / Collected', 'Passport has been handed over to the applicant.']
   ];
- }
- return stages.map((x,i)=>({title:x[0],desc:x[1],done:['COMPLETED','RELEASED / COLLECTED'].includes(s)||i<current,current:!['COMPLETED','RELEASED / COLLECTED'].includes(s)&&i===current}));
-}
-function buildTimeline(status){
- const currentApp=getApplications().find(a=>a.id===(sessionStorage.getItem('baiCurrentApplicationId')||''));
- const actualStatus=currentApp?.type==='Passport Renewal'?(currentApp.renewalStatus||currentApp.status||'Pending'):status;
- return timelineFor(actualStatus).map(step=>`<div class="timeline-step ${step.done?'done':''} ${step.current?'current':''}"><span>${step.done?'✓':step.current?'●':'○'}</span><div><b>${step.title}</b><small>${step.desc}</small></div></div>`).join('');
+  const rejected = ['REJECTED', 'CANCELLED'].includes(s);
+  let current = 0;
+  if (['SUBMITTED', 'PENDING'].includes(s)) current = 0;
+  else if (s === 'UNDER REVIEW') current = 1;
+  else if (s === 'APPROVED') current = 2;
+  else if (s === 'PROCESSING') current = 3;
+  else if (['PASSPORT PRINTED', 'READY FOR RELEASE'].includes(s)) current = 4;
+  else if (['COMPLETED', 'RELEASED / COLLECTED'].includes(s)) current = 5;
+
+  if (rejected) {
+    const outcome = s === 'REJECTED' ? 'Rejected' : 'Cancelled';
+    return [
+      { title: 'Pending', desc: 'Application submitted and waiting for review.', done: true, current: false },
+      { title: 'Under Review', desc: 'Personnel reviewed the application.', done: true, current: false },
+      {
+        title: outcome,
+        desc: s === 'REJECTED'
+          ? 'Application was not accepted. Check the remarks for the reason.'
+          : 'Application was cancelled.',
+        done: false,
+        current: true
+      }
+    ];
+  }
+
+  const isDoneAll = ['COMPLETED', 'RELEASED / COLLECTED'].includes(s);
+  return stages.map((x, i) => ({
+    title: x[0],
+    desc: x[1],
+    done: isDoneAll || i < current,
+    current: !isDoneAll && i === current
+  }));
 }
 
-function uploadIcon(){
- return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function buildTimeline(status) {
+  const currentApp = getApplications().find(a => a.id === (sessionStorage.getItem('baiCurrentApplicationId') || ''));
+  const actualStatus = currentApp?.type === 'Passport Renewal'
+    ? (currentApp.renewalStatus || currentApp.status || 'Pending')
+    : status;
+  return timelineFor(actualStatus)
+    .map(step => `<div class="timeline-step ${step.done ? 'done' : ''} ${step.current ? 'current' : ''}"><span>${step.done ? '✓' : step.current ? '●' : '○'}</span><div><b>${step.title}</b><small>${step.desc}</small></div></div>`)
+    .join('');
 }
 
-function authBrand(){
+function uploadIcon() {
+  return `<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 29h-1a8 8 0 1 1 2-15.8A10 10 0 0 1 33 18a7 7 0 0 1-1 14h-5" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round"/><path d="M22 33V17m0 0-6 6m6-6 6 6" fill="none" stroke="#27354e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function authBrand() {
   return `<div class="auth-brand"><img src="assets/dashboard-logo.png" alt="BAI logo"></div>`;
 }
 
+/* ==========================================================================
+   5. Email Validation, Registration Screens & OTP Verification Views
+   ========================================================================== */
 
-function isValidEmailAddress(value){
- const email=String(value||'').trim();
- return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+function isValidEmailAddress(value) {
+  const email = String(value || '').trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
-function validateLoginEmailInput(input){
- if(!input) return false;
- const wrapper=input.closest('.field');
- if(isValidEmailAddress(input.value)){
-   wrapper?.classList.remove('invalid');
-   wrapper?.querySelector('.field-error')?.remove();
-   return true;
- }
- return false;
+
+function validateLoginEmailInput(input) {
+  if (!input) return false;
+  const wrapper = input.closest('.field');
+  if (isValidEmailAddress(input.value)) {
+    wrapper?.classList.remove('invalid');
+    wrapper?.querySelector('.field-error')?.remove();
+    return true;
+  }
+  return false;
 }
 
 function loginVerify(){
@@ -219,12 +352,18 @@ function adultRegister(){
  </div></div>`;
 }
 
+/* ==========================================================================
+   6. Passport Renewal Wizard (5 Steps)
+   ========================================================================== */
+
+/** Merges saved renewal wizard draft from sessionStorage over prefilled member profile defaults. */
 function getRenewalDraft(){
  let saved={};try{saved=JSON.parse(sessionStorage.getItem('baiRenewalDraft')||'{}')}catch(e){}
  const acct=currentAccount()||{};const full=String(acct.name||accountName()||'').trim().split(/\s+/);
  const defaults={renewalFirstName:acct.firstName||full[0]||'',renewalLastName:acct.lastName||(full.length>1?full.slice(1).join(' '):''),renewalSex:acct.gender||sessionStorage.getItem('baiAccountGender')||'',renewalDob:acct.dob||sessionStorage.getItem('baiAccountDob')||'',renewalCivilStatus:acct.civilStatus||sessionStorage.getItem('baiAccountCivilStatus')||'',renewalEmail:acct.email||accountEmail()};
  return {...defaults,...saved};
 }
+/** Saves current renewal step inputs and toggles reason-dependent upload fields + live fee preview. */
 function saveRenewalDraft(){
  const draft=getRenewalDraft();
  document.querySelectorAll('[data-renewal-field]').forEach(el=>{
@@ -245,49 +384,257 @@ function renewalField(id,label,type='text',required=true,placeholder=''){
  if(type==='date') return renewalDateField(id,label,required);
  return `<div class="field"><label for="${id}">${label}${required?' <span class="renewal-required">*</span>':''}</label><input data-renewal-field id="${id}" type="${type}" value="${renewalValue(id)}" ${required?'required':''} placeholder="${placeholder}" ${type==='email'?'autocomplete="email"':''} oninput="saveRenewalDraft()"><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`;
 }
-function renewalSelect(id,label,options,required=true){const draftValue=getRenewalDraft()[id];const placeholder=id==='embassy'?`<option value="" disabled hidden ${draftValue?'':'selected'}>Select ${label}</option>`:`<option value="">Select ${label.toLowerCase()}</option>`;return `<div class="field ${id==='embassy'?'full renewal-embassy-field':''}"><label for="${id}">${label}${required?' <span class="renewal-required">*</span>':''}</label><select data-renewal-field id="${id}" ${required?'required':''} onchange="saveRenewalDraft()${id==='renewalCivilStatus'?';toggleRenewalSpouseFields()':''}">${placeholder}${options.map(o=>`<option value="${esc(o)}" ${renewalSelected(id,o)}>${esc(o)}</option>`).join('')}</select><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`}
+function renewalSelect(id, label, options, required = true, full = false) {
+  const draftValue = getRenewalDraft()[id];
+  const placeholder = id === 'embassy'
+    ? `<option value="" disabled hidden ${draftValue ? '' : 'selected'}>Select ${label}</option>`
+    : `<option value="">Select ${label.toLowerCase()}</option>`;
+  return `<div class="field ${full ? 'full' : ''} ${id === 'embassy' ? 'renewal-embassy-field' : ''}"><label for="${id}">${label}${required ? ' <span class="renewal-required">*</span>' : ''}</label><select data-renewal-field id="${id}" ${required ? 'required' : ''} onchange="saveRenewalDraft()${id === 'renewalCivilStatus' ? ';toggleRenewalSpouseFields()' : ''}">${placeholder}${options.map(o => `<option value="${esc(o)}" ${renewalSelected(id, o)}>${esc(o)}</option>`).join('')}</select><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`;
+}
 function renewalDateField(id,label,required=true){const d=String(getRenewalDraft()[id]||'').split('-'),y=d[0]||'',m=d[1]||'',day=d[2]||'',yearNow=new Date().getFullYear();const months=['January','February','March','April','May','June','July','August','September','October','November','December'];return `<div class="field"><label for="${id}Year">${label}${required?' <span class="renewal-required">*</span>':''}</label><div class="renewal-date-parts"><select id="${id}Month" aria-label="${label} month" onchange="syncRenewalDate('${id}')"><option value="">Month</option>${months.map((n,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${m===String(i+1).padStart(2,'0')?'selected':''}>${n}</option>`).join('')}</select><select id="${id}Day" aria-label="${label} day" onchange="syncRenewalDate('${id}')"><option value="">Day</option>${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${String(n).padStart(2,'0')}" ${day===String(n).padStart(2,'0')?'selected':''}>${n}</option>`).join('')}</select><select id="${id}Year" aria-label="${label} year" onchange="syncRenewalDate('${id}')"><option value="">Year</option>${Array.from({length:yearNow-1899},(_,i)=>yearNow-i).map(n=>`<option value="${n}" ${y===String(n)?'selected':''}>${n}</option>`).join('')}</select></div><input data-renewal-field id="${id}" type="hidden" value="${renewalValue(id)}" ${required?'required':''}><small class="renewal-field-error" data-error-for="${id}" hidden></small></div>`}
 function renewalBirthDateField(){return renewalDateField('renewalDob','Date of Birth',true)}
 function syncRenewalDate(id){const y=document.getElementById(id+'Year')?.value,m=document.getElementById(id+'Month')?.value,d=document.getElementById(id+'Day')?.value,hidden=document.getElementById(id);if(hidden)hidden.value=y&&m&&d?`${y}-${m}-${d}`:'';saveRenewalDraft();}
-function syncRenewalBirthDate(){syncRenewalDate('renewalDob')}
 function toggleRenewalSpouseFields(){
   const wrap=document.getElementById('renewalSpouseFields');
   const married=document.getElementById('renewalCivilStatus')?.value==='Married';
   if(wrap)wrap.style.display=married?'contents':'none';
   if(!married){const draft=getRenewalDraft();draft.renewalSpouseName='';draft.renewalSpouseCitizenship='';sessionStorage.setItem('baiRenewalDraft',JSON.stringify(draft));}
 }
-function renewalForm(){
- const step=renewalStep();
- const titles=['Reason & Documents','Personal & Passport Details','Contact & Emergency','Oath','Fee & Review'];
- let body='';
- if(step===1) body=`<div class="renewal-form-grid"><div class="field full"><label>Renewal Reason <span class="renewal-required">*</span></label><select data-renewal-field id="renewalReason" required onchange="saveRenewalDraft()"><option value="" ${getRenewalDraft().renewalReason?'':'selected'}>Select renewal reason</option>${['Passport is Expiring or Expired','Passport is Damaged','Passport is Lost','Citizen Status Changed'].map(o=>`<option value="${o}" ${getRenewalDraft().renewalReason===o?'selected':''}>${o}</option>`).join('')}</select><small class="renewal-field-error" data-error-for="renewalReason" hidden></small><p class="renewal-fee-hint" id="renewalPenaltyPreview">Choose a reason to see applicable penalty.</p><p class="renewal-help"><a href="#" onclick="go('help-center');setTimeout(()=>browseHelpCategory('Documents / Requirements'),120);return false;">Browse Knowledge Base: Valid IDs & Passport Requirements</a></p></div><div class="field full"><label>Legal Declaration <span class="renewal-required">*</span></label>${uploadBox('renewalLegalDeclaration','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB. Select the file again if you reopen this form in a new browser session.</p></div><div class="field full"><label>Valid Government ID <span class="renewal-required">*</span></label>${uploadBox('renewalGovernmentId','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB.</p></div><div class="field full" id="renewalStatusChangeUpload" style="display:${getRenewalDraft().renewalReason==='Citizen Status Changed'?'block':'none'}"><label>Proof of Status Change Certificate <span class="renewal-required">*</span></label>${uploadBox('renewalStatusChangeCertificate','','wide-upload')}<p class="renewal-help">Upload the relevant official certificate or supporting civil-registry document. PDF, JPG or PNG; maximum 10 MB.</p></div><div class="field full" id="renewalLostUpload" style="display:${getRenewalDraft().renewalReason==='Passport is Lost'?'block':'none'}"><label>Affidavit of Loss <span class="renewal-required">*</span></label>${uploadBox('renewalAffidavitOfLoss','','wide-upload')}<p class="renewal-help">Upload the notarized Affidavit of Loss. PDF, JPG or PNG; maximum 10 MB.</p></div><div class="field full" id="renewalDamagedUpload" style="display:${getRenewalDraft().renewalReason==='Passport is Damaged'?'block':'none'}"><label>Proof of Damaged Passport <span class="renewal-required">*</span></label>${uploadBox('renewalDamagedPassportProof','','wide-upload')}<p class="renewal-help">Upload a clear scan or photo showing the damaged passport. PDF, JPG or PNG; maximum 10 MB.</p></div></div>`;
- if(step===2) body=`<div class="renewal-form-grid">${renewalField('renewalLastName','Last Name')}${renewalField('renewalFirstName','First Name')}${renewalField('renewalMiddleName','Middle Name / Maiden Name', 'text',false)}${renewalSelect('renewalSex','Sex',['Male','Female'])}${renewalBirthDateField()}${renewalField('renewalBirthPlace','Place of Birth')}${renewalSelect('renewalCivilStatus','Civil Status',['Single','Married','Widowed','Divorced','Separated'])}${renewalField('renewalPassportNumber','Current Passport Number')}${renewalField('renewalPassportIssueDate','Passport Date of Issue','date')}${renewalField('renewalPassportIssuePlace','Passport Place of Issue')}${renewalSelect('embassy','DFA Consular Office / Site',['DFA Office of Consular Affairs - Aseana, Parañaque','DFA Consular Office NCR Central - Pasig','DFA Consular Office NCR East - Mandaluyong','DFA Consular Office NCR North - Quezon City','DFA Consular Office NCR Northeast - Quezon City','DFA Consular Office NCR South - Muntinlupa','DFA Consular Office NCR West - Manila'])}${renewalField('renewalForeignPassport','Foreign Passport Details (if applicable)','text',false)}<div class="field full"><h3 class="renewal-subheading">Family Information</h3></div>${renewalField('renewalFatherName','Father’s Full Name')}${renewalField('renewalFatherDob','Father’s Date of Birth','date')}${renewalField('renewalFatherCitizenship','Father’s Citizenship')}${renewalField('renewalMotherName','Mother’s Full Name')}${renewalField('renewalMotherDob','Mother’s Date of Birth','date')}${renewalField('renewalMotherCitizenship','Mother’s Citizenship')}<div id="renewalSpouseFields" style="display:${getRenewalDraft().renewalCivilStatus==='Married'?'contents':'none'}">${renewalField('renewalSpouseName','Spouse’s Full Name','text',false)}${renewalField('renewalSpouseCitizenship','Spouse’s Nationality','text',false)}</div></div>`;
- if(step===3) body=`<div class="renewal-form-grid">${renewalField('renewalPresentAddress','Present Address')}${renewalField('renewalPermanentAddress','Permanent Address')}${renewalField('renewalMobile','Mobile Number','tel')}${renewalField('renewalEmail','Email Address','email')}${renewalField('renewalOccupation','Occupation')}${renewalField('renewalEmployer','Employer / School')}${renewalField('renewalEmergencyName','Emergency Contact Name')}${renewalField('renewalEmergencyAddress','Emergency Contact Address')}${renewalField('renewalEmergencyPhone','Emergency Contact Number','tel')}</div>`;
- if(step===4) body=`<div class="renewal-oath"><h3>Applicant’s Oath</h3><p>I declare that I am a Filipino citizen; that all information supplied in this application is true and correct; that the documents submitted are authentic; and that I understand the one-passport limit. I understand that false statements may be punishable under Republic Act No. 8239.</p><label class="renewal-oath-check"><input data-renewal-field id="renewalOathAccepted" type="checkbox" ${renewalChecked('renewalOathAccepted')} onchange="saveRenewalDraft()"> I have read and accept the sworn declaration. <span class="renewal-required">*</span></label><div class="field renewal-signature-field"><label for="renewalSignature">Type your full name as your electronic signature <span class="renewal-required">*</span></label><input data-renewal-field id="renewalSignature" value="${renewalValue('renewalSignature')}" oninput="saveRenewalDraft()" placeholder="Full legal name"></div></div>`;
- if(step===5) body=`<div class="renewal-form-grid">${renewalSelect('renewalProcessing','Processing Type',['Regular','Express'])}${renewalSelect('renewalCourier','Courier Delivery',['No','Yes'])}<div id="renewalDeliveryAddressWrap" class="field full" style="display:${getRenewalDraft().renewalCourier==='Yes'?'block':'none'}">${renewalField('renewalDeliveryAddress','Preferred Delivery Address','text',true)}</div><div class="field full"><div class="renewal-total-card"><div><span>Processing fee</span><strong id="renewalProcessingFee">₱950</strong></div><div><span>Courier</span><strong id="renewalCourierFee">₱0</strong></div><div><span>Lost / damaged penalty</span><strong id="renewalPenaltyFee">₱0</strong></div><div class="renewal-grand-total"><span>Estimated total</span><strong id="renewalTotalFee">₱950</strong></div><p id="renewalProcessingTime">Estimated processing: 10–12 working days (Regular).</p></div></div><div class="field full"><h3 class="renewal-subheading">Review your details</h3><div id="renewalReviewSummary" class="renewal-review-summary"></div></div></div>`;
- return `<div class="auth-screen terminal-auth renewal-wizard-screen"><div class="registration-card renewal-card renewal-wizard-card"><button class="auth-back auth-back-form back-btn" onclick="go('dashboard')" aria-label="Back to dashboard">← Dashboard</button><div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>PASSPORT RENEWAL</h1><p>Complete each step to submit your renewal request.</p></div></div><div class="renewal-progress" aria-label="Renewal progress">${titles.map((t,i)=>`<div class="renewal-progress-item ${i+1<step?'complete':i+1===step?'active':''}"><span>${i+1<step?'✓':i+1}</span><small>${t}</small></div>`).join('')}</div><div class="renewal-step-heading"><span>STEP ${step} OF 5</span><h2>${titles[step-1]}</h2></div><div class="renewal-step-content">${body}</div><div class="renewal-step-actions">${step>1?'<button class="secondary-action" type="button" onclick="renewalPrevious()">Back</button>':'<button class="secondary-action" type="button" onclick="go(\'dashboard\')">Back</button>'}${step<5?'<button class="primary" type="button" onclick="renewalNext()">Next</button>':'<button class="primary" type="button" onclick="submitRenewal()">Submit Renewal</button>'}</div><p class="renewal-form-footnote">Fields marked * are required. Your entries are preserved when moving between steps.</p></div></div>`;
+
+/** Opens the Requirements & Valid IDs FAQ while preserving the active wizard draft & return route. */
+function openRequirementsFaq(returnRoute = '') {
+  if (returnRoute === 'renewal-form') saveRenewalDraft();
+  if (returnRoute === 'new-application') saveNpDraft();
+  goQuery('knowledge-article', {
+    id: 'KB-FAQ-REQ-001',
+    ...(returnRoute ? { from: returnRoute } : {})
+  });
 }
+
+function renewalForm() {
+  const step = renewalStep();
+  const draft = getRenewalDraft();
+  const titles = ['Reason & Documents', 'Personal & Passport Details', 'Contact & Emergency', 'Oath', 'Fee & Review'];
+  let body = '';
+
+  if (step === 1) {
+    body = `
+      <div class="renewal-form-grid">
+        <div class="field full">
+          <label for="renewalReason">Renewal Reason <span class="renewal-required">*</span></label>
+          <select data-renewal-field id="renewalReason" required onchange="saveRenewalDraft()">
+            <option value="" ${draft.renewalReason ? '' : 'selected'}>Select renewal reason</option>
+            ${['Passport is Expiring or Expired', 'Passport is Damaged', 'Passport is Lost', 'Citizen Status Changed']
+              .map(o => `<option value="${o}" ${draft.renewalReason === o ? 'selected' : ''}>${o}</option>`)
+              .join('')}
+          </select>
+          <small class="renewal-field-error" data-error-for="renewalReason" hidden></small>
+          <p class="renewal-fee-hint" id="renewalPenaltyPreview">Choose a reason to see applicable penalty.</p>
+          <p class="renewal-help">
+            <a class="faq-inline-link" href="#knowledge-article?id=KB-FAQ-REQ-001&from=renewal-form" onclick="openRequirementsFaq('renewal-form');return false;">
+              View FAQ: List of Requirements, Valid IDs &amp; Supporting Documents →
+            </a>
+          </p>
+        </div>
+        <div class="field full">
+          <label>Legal Declaration <span class="renewal-required">*</span></label>
+          ${uploadBox('renewalLegalDeclaration', '', 'wide-upload')}
+          <p class="renewal-help">PDF, JPG or PNG; maximum 10 MB. Select the file again if you reopen this form in a new browser session.</p>
+        </div>
+        <div class="field full">
+          <label>Valid Government ID <span class="renewal-required">*</span></label>
+          ${uploadBox('renewalGovernmentId', '', 'wide-upload')}
+          <p class="renewal-help">
+            PDF, JPG or PNG; maximum 10 MB.
+            <a class="faq-inline-link" href="#knowledge-article?id=KB-FAQ-REQ-001&from=renewal-form" onclick="openRequirementsFaq('renewal-form');return false;">See FAQ of Valid IDs &amp; Requirements</a>
+          </p>
+        </div>
+        <div class="field full" id="renewalStatusChangeUpload" style="display:${draft.renewalReason === 'Citizen Status Changed' ? 'block' : 'none'}">
+          <label>Proof of Status Change Certificate <span class="renewal-required">*</span></label>
+          ${uploadBox('renewalStatusChangeCertificate', '', 'wide-upload')}
+          <p class="renewal-help">Upload the official status-change certificate or civil-registry document (e.g., PSA Marriage Certificate, Annotated Birth Certificate, Court Order, or Citizenship Certificate). PDF, JPG or PNG; maximum 10 MB.</p>
+        </div>
+        <div class="field full" id="renewalLostUpload" style="display:${draft.renewalReason === 'Passport is Lost' ? 'block' : 'none'}">
+          <label>Proof of Lost Passport (Affidavit of Loss) <span class="renewal-required">*</span></label>
+          ${uploadBox('renewalAffidavitOfLoss', '', 'wide-upload')}
+          <p class="renewal-help">Upload your notarized Affidavit of Loss (and Police Report if the lost passport was still valid). PDF, JPG or PNG; maximum 10 MB.</p>
+        </div>
+        <div class="field full" id="renewalDamagedUpload" style="display:${draft.renewalReason === 'Passport is Damaged' ? 'block' : 'none'}">
+          <label>Proof of Damaged Passport (Affidavit of Loss / Mutilation) <span class="renewal-required">*</span></label>
+          ${uploadBox('renewalDamagedPassportProof', '', 'wide-upload')}
+          <p class="renewal-help">Upload your notarized Affidavit of Loss / Explanation (Mutilation) or clear photo/scan of the damaged passport. PDF, JPG or PNG; maximum 10 MB.</p>
+        </div>
+      </div>`;
+  }
+
+  if (step === 2) {
+    // DFA Consular Office / Site placed in Personal & Passport Details right beside Passport Place of Issue
+    body = `
+      <div class="renewal-form-grid">
+        ${renewalField('renewalLastName', 'Last Name')}
+        ${renewalField('renewalFirstName', 'First Name')}
+        ${renewalField('renewalMiddleName', 'Middle Name / Maiden Name', 'text', false)}
+        ${renewalSelect('renewalSex', 'Sex', ['Male', 'Female'])}
+        ${renewalBirthDateField()}
+        ${renewalField('renewalBirthPlace', 'Place of Birth')}
+        ${renewalSelect('renewalCivilStatus', 'Civil Status', ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'])}
+        ${renewalField('renewalForeignPassport', 'Foreign Passport Details (if applicable)', 'text', false)}
+        ${renewalField('renewalPassportNumber', 'Current Passport Number')}
+        ${renewalField('renewalPassportIssueDate', 'Passport Date of Issue', 'date')}
+        ${renewalField('renewalPassportIssuePlace', 'Passport Place of Issue')}
+        ${renewalSelect('embassy', 'DFA Consular Office / Site', [
+          'DFA Office of Consular Affairs - Aseana, Parañaque',
+          'DFA Consular Office NCR Central - Pasig',
+          'DFA Consular Office NCR East - Mandaluyong',
+          'DFA Consular Office NCR North - Quezon City',
+          'DFA Consular Office NCR Northeast - Quezon City',
+          'DFA Consular Office NCR South - Muntinlupa',
+          'DFA Consular Office NCR West - Manila'
+        ])}
+        <div class="field full"><h3 class="renewal-subheading">Family Information</h3></div>
+        ${renewalField('renewalFatherName', 'Father’s Full Name')}
+        ${renewalField('renewalFatherDob', 'Father’s Date of Birth', 'date')}
+        ${renewalField('renewalFatherCitizenship', 'Father’s Citizenship')}
+        ${renewalField('renewalMotherName', 'Mother’s Full Name')}
+        ${renewalField('renewalMotherDob', 'Mother’s Date of Birth', 'date')}
+        ${renewalField('renewalMotherCitizenship', 'Mother’s Citizenship')}
+        <div id="renewalSpouseFields" style="display:${draft.renewalCivilStatus === 'Married' ? 'contents' : 'none'}">
+          ${renewalField('renewalSpouseName', 'Spouse’s Full Name', 'text', false)}
+          ${renewalField('renewalSpouseCitizenship', 'Spouse’s Nationality', 'text', false)}
+        </div>
+      </div>`;
+  }
+
+  if (step === 3) {
+    body = `<div class="renewal-form-grid">${renewalField('renewalPresentAddress', 'Present Address')}${renewalField('renewalPermanentAddress', 'Permanent Address')}${renewalField('renewalMobile', 'Mobile Number', 'tel')}${renewalField('renewalEmail', 'Email Address', 'email')}${renewalField('renewalOccupation', 'Occupation')}${renewalField('renewalEmployer', 'Employer / School')}${renewalField('renewalEmergencyName', 'Emergency Contact Name')}${renewalField('renewalEmergencyAddress', 'Emergency Contact Address')}${renewalField('renewalEmergencyPhone', 'Emergency Contact Number', 'tel')}</div>`;
+  }
+
+  if (step === 4) {
+    body = `<div class="renewal-oath"><h3>Applicant’s Oath</h3><p>I declare that I am a Filipino citizen; that all information supplied in this application is true and correct; that the documents submitted are authentic; and that I understand the one-passport limit. I understand that false statements may be punishable under Republic Act No. 8239.</p><label class="renewal-oath-check"><input data-renewal-field id="renewalOathAccepted" type="checkbox" ${renewalChecked('renewalOathAccepted')} onchange="saveRenewalDraft()"> I have read and accept the sworn declaration. <span class="renewal-required">*</span></label><div class="field renewal-signature-field"><label for="renewalSignature">Type your full name as your electronic signature <span class="renewal-required">*</span></label><input data-renewal-field id="renewalSignature" value="${renewalValue('renewalSignature')}" oninput="saveRenewalDraft()" placeholder="Full legal name"></div></div>`;
+  }
+
+  if (step === 5) {
+    body = `<div class="renewal-form-grid">${renewalSelect('renewalProcessing', 'Processing Type', ['Regular', 'Express'])}${renewalSelect('renewalCourier', 'Courier Delivery', ['No', 'Yes'])}<div id="renewalDeliveryAddressWrap" class="field full" style="display:${draft.renewalCourier === 'Yes' ? 'block' : 'none'}">${renewalField('renewalDeliveryAddress', 'Preferred Delivery Address', 'text', true)}</div><div class="field full"><div class="renewal-total-card"><div><span>Processing fee</span><strong id="renewalProcessingFee">₱950</strong></div><div><span>Courier</span><strong id="renewalCourierFee">₱0</strong></div><div><span>Lost / damaged penalty</span><strong id="renewalPenaltyFee">₱0</strong></div><div class="renewal-grand-total"><span>Estimated total</span><strong id="renewalTotalFee">₱950</strong></div><p id="renewalProcessingTime">Estimated processing: 10–12 working days (Regular).</p></div></div><div class="field full"><h3 class="renewal-subheading">Review your details</h3><div id="renewalReviewSummary" class="renewal-review-summary"></div></div></div>`;
+  }
+
+  return `<div class="auth-screen terminal-auth renewal-wizard-screen"><div class="registration-card renewal-card renewal-wizard-card"><button class="auth-back auth-back-form back-btn" onclick="go('dashboard')" aria-label="Back to dashboard">← Dashboard</button><div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>PASSPORT RENEWAL</h1><p>Complete each step to submit your renewal request.</p></div></div><div class="renewal-progress" aria-label="Renewal progress">${titles.map((t, i) => `<div class="renewal-progress-item ${i + 1 < step ? 'complete' : i + 1 === step ? 'active' : ''}"><span>${i + 1 < step ? '✓' : i + 1}</span><small>${t}</small></div>`).join('')}</div><div class="renewal-step-heading"><span>STEP ${step} OF 5</span><h2>${titles[step - 1]}</h2></div><div class="renewal-step-content">${body}</div><div class="renewal-step-actions">${step > 1 ? '<button class="secondary-action" type="button" onclick="renewalPrevious()">Back</button>' : '<button class="secondary-action" type="button" onclick="go(\'dashboard\')">Back</button>'}${step < 5 ? '<button class="primary" type="button" onclick="renewalNext()">Next</button>' : '<button class="primary" type="button" onclick="submitRenewal()">Submit Renewal</button>'}</div><p class="renewal-form-footnote">Fields marked * are required. Your entries are preserved when moving between steps.</p></div></div>`;
+}
+
 function wireRenewalUploadControls(){document.querySelectorAll('.renewal-wizard-card .upload-box input[type=file]').forEach(input=>{const box=input.closest('.upload-box');if(!box||box.querySelector('.renewal-remove-file'))return;const btn=document.createElement('button');btn.type='button';btn.className='renewal-remove-file';btn.textContent='Remove';btn.style.display=window.baiUploadFiles[input.id]?'inline-flex':'none';btn.onclick=e=>{e.preventDefault();e.stopPropagation();delete window.baiUploadFiles[input.id];input.value='';const name=box.querySelector('.upload-file-name');if(name)name.textContent='';box.classList.remove('has-file','upload-invalid');box.querySelector('.field-error')?.remove();btn.style.display='none';};box.appendChild(btn);input.addEventListener('change',()=>{btn.style.display=input.files?.length?'inline-flex':'none';});});}
 function renewalPrevious(){saveRenewalDraft();sessionStorage.setItem('baiRenewalStep',String(Math.max(1,renewalStep()-1)));go('renewal-form')}
-function renewalNext(){
- saveRenewalDraft(); clearRenewalFieldErrors(); const s=renewalStep(); let ids=[];
- if(s===1){
-  if(!document.getElementById('renewalReason')?.value)showRenewalFieldError('renewalReason','Please choose a renewal reason.');
-  ids=[];
-  const reason=document.getElementById('renewalReason')?.value||'';const conditionalUploads=reason==='Citizen Status Changed'?['renewalStatusChangeCertificate']:reason==='Passport is Lost'?['renewalAffidavitOfLoss']:reason==='Passport is Damaged'?['renewalDamagedPassportProof']:[];const requiredUploads=['renewalLegalDeclaration','renewalGovernmentId',...conditionalUploads];
-  for(const id of requiredUploads){const f=window.baiUploadFiles[id];if(f){const okType=['application/pdf','image/jpeg','image/png'].includes(f.type);if(!okType)showRenewalUploadError(id,'Upload a PDF, JPG, or PNG file.');else if(f.size>10*1024*1024)showRenewalUploadError(id,'File must be 10 MB or smaller.');}}
-  requiredUploads.forEach(id=>{if(!(window.baiUploadFiles[id]||document.getElementById(id)?.files?.length)){const labels={renewalLegalDeclaration:'Please upload the Legal Declaration.',renewalGovernmentId:'Please upload a valid government ID.',renewalStatusChangeCertificate:'Please upload proof of status change.',renewalAffidavitOfLoss:'Please upload the Affidavit of Loss.',renewalDamagedPassportProof:'Please upload proof of the damaged passport.'};showRenewalUploadError(id,labels[id]||'Please upload the required document.');}});
- }
- if(s===2) ids=['embassy','renewalLastName','renewalFirstName','renewalSex','renewalDob','renewalBirthPlace','renewalCivilStatus','renewalPassportNumber','renewalPassportIssueDate','renewalPassportIssuePlace','renewalFatherName','renewalFatherDob','renewalFatherCitizenship','renewalMotherName','renewalMotherDob','renewalMotherCitizenship'];
- if(s===3) ids=['renewalPresentAddress','renewalPermanentAddress','renewalMobile','renewalEmail','renewalOccupation','renewalEmployer','renewalEmergencyName','renewalEmergencyAddress','renewalEmergencyPhone'];
- if(s===4){const d=getRenewalDraft();if(!d.renewalOathAccepted)showRenewalFieldError('renewalOathAccepted','Please accept the applicant’s oath.');if(!String(d.renewalSignature||'').trim())showRenewalFieldError('renewalSignature','Please enter your electronic signature.');if(!d.renewalOathAccepted||!String(d.renewalSignature||'').trim())return;}
- let invalid=false;
- for(const id of ids){const el=document.getElementById(id);if(!el||!String(el.value||'').trim()){showRenewalFieldError(id,`Please complete ${renewalFieldLabel(id)}.`);invalid=true;continue;}if(el.type==='email'&&!el.checkValidity()){showRenewalFieldError(id,'Please enter a valid email address.');invalid=true;continue;}/* Date fields only require all date parts to be selected; do not show a separate date-validity warning. */
- }
- if(s===1&&!document.getElementById('renewalReason')?.value)invalid=true;
- if(s===5&&getRenewalDraft().renewalCourier==='Yes'&&!String(getRenewalDraft().renewalDeliveryAddress||'').trim()){showRenewalFieldError('renewalDeliveryAddress','Please enter your preferred delivery address.');invalid=true;}
- if(invalid)return;
- sessionStorage.setItem('baiRenewalStep',String(s+1));go('renewal-form');
+
+function renewalNext() {
+  saveRenewalDraft();
+  clearRenewalFieldErrors();
+  const s = renewalStep();
+  let ids = [];
+  let invalid = false;
+
+  if (s === 1) {
+    const reason = document.getElementById('renewalReason')?.value || '';
+    if (!reason) {
+      showRenewalFieldError('renewalReason', 'Please choose a renewal reason.');
+      invalid = true;
+    }
+    const conditionalUploads =
+      reason === 'Citizen Status Changed'
+        ? ['renewalStatusChangeCertificate']
+        : reason === 'Passport is Lost'
+          ? ['renewalAffidavitOfLoss']
+          : reason === 'Passport is Damaged'
+            ? ['renewalDamagedPassportProof']
+            : [];
+    const requiredUploads = ['renewalLegalDeclaration', 'renewalGovernmentId', ...conditionalUploads];
+    const labels = {
+      renewalLegalDeclaration: 'Please upload the Legal Declaration.',
+      renewalGovernmentId: 'Please upload a valid government ID.',
+      renewalStatusChangeCertificate: 'Please upload the Proof of Status Change Certificate.',
+      renewalAffidavitOfLoss: 'Please upload the Affidavit of Loss.',
+      renewalDamagedPassportProof: 'Please upload the Affidavit of Loss / Proof of Damaged Passport.'
+    };
+
+    for (const id of requiredUploads) {
+      const f = window.baiUploadFiles[id];
+      const hasFile = !!(f || document.getElementById(id)?.files?.length);
+      if (!hasFile) {
+        showRenewalUploadError(id, labels[id] || 'Please upload the required document.');
+        invalid = true;
+        continue;
+      }
+      if (f) {
+        const okType = ['application/pdf', 'image/jpeg', 'image/png'].includes(f.type);
+        if (!okType) {
+          showRenewalUploadError(id, 'Upload a PDF, JPG, or PNG file.');
+          invalid = true;
+        } else if (f.size > 10 * 1024 * 1024) {
+          showRenewalUploadError(id, 'File must be 10 MB or smaller.');
+          invalid = true;
+        }
+      }
+    }
+  }
+
+  if (s === 2) {
+    ids = [
+      'renewalLastName',
+      'renewalFirstName',
+      'renewalSex',
+      'renewalDob',
+      'renewalBirthPlace',
+      'renewalCivilStatus',
+      'renewalPassportNumber',
+      'renewalPassportIssueDate',
+      'renewalPassportIssuePlace',
+      'embassy',
+      'renewalFatherName',
+      'renewalFatherDob',
+      'renewalFatherCitizenship',
+      'renewalMotherName',
+      'renewalMotherDob',
+      'renewalMotherCitizenship'
+    ];
+  }
+  if (s === 3) {
+    ids = [
+      'renewalPresentAddress',
+      'renewalPermanentAddress',
+      'renewalMobile',
+      'renewalEmail',
+      'renewalOccupation',
+      'renewalEmployer',
+      'renewalEmergencyName',
+      'renewalEmergencyAddress',
+      'renewalEmergencyPhone'
+    ];
+  }
+  if (s === 4) {
+    const d = getRenewalDraft();
+    if (!d.renewalOathAccepted) showRenewalFieldError('renewalOathAccepted', 'Please accept the applicant’s oath.');
+    if (!String(d.renewalSignature || '').trim()) showRenewalFieldError('renewalSignature', 'Please enter your electronic signature.');
+    if (!d.renewalOathAccepted || !String(d.renewalSignature || '').trim()) return;
+  }
+
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (!el || !String(el.value || '').trim()) {
+      showRenewalFieldError(id, `Please complete ${renewalFieldLabel(id)}.`);
+      invalid = true;
+      continue;
+    }
+    if (el.type === 'email' && !el.checkValidity()) {
+      showRenewalFieldError(id, 'Please enter a valid email address.');
+      invalid = true;
+      continue;
+    }
+  }
+
+  if (s === 5 && getRenewalDraft().renewalCourier === 'Yes' && !String(getRenewalDraft().renewalDeliveryAddress || '').trim()) {
+    showRenewalFieldError('renewalDeliveryAddress', 'Please enter your preferred delivery address.');
+    invalid = true;
+  }
+  if (invalid) return;
+  sessionStorage.setItem('baiRenewalStep', String(s + 1));
+  go('renewal-form');
 }
 function showRenewalUploadError(id,message){const input=document.getElementById(id),box=input?.closest('.upload-box');if(!box)return;box.classList.add('upload-invalid');let e=box.querySelector('.field-error');if(!e){e=document.createElement('div');e.className='field-error upload-error';box.appendChild(e);}e.textContent=message;}
 function renewalFieldLabel(id){return ({embassy:'the DFA Consular Office / Site',renewalLastName:'your last name',renewalFirstName:'your first name',renewalSex:'your sex',renewalDob:'your date of birth',renewalReason:'a renewal reason',renewalLegalDeclaration:'the Legal Declaration',renewalGovernmentId:'a valid government ID',renewalBirthPlace:'your place of birth',renewalCivilStatus:'your civil status',renewalPassportNumber:'your current passport number',renewalPassportIssueDate:'your passport date of issue',renewalPassportIssuePlace:'your passport place of issue',renewalFatherName:'your father’s full name',renewalFatherDob:'your father’s date of birth',renewalFatherCitizenship:'your father’s citizenship',renewalMotherName:'your mother’s full name',renewalMotherDob:'your mother’s date of birth',renewalMotherCitizenship:'your mother’s citizenship',renewalPresentAddress:'your present address',renewalPermanentAddress:'your permanent address',renewalMobile:'your mobile number',renewalEmail:'your email address',renewalOccupation:'your occupation',renewalEmployer:'your employer / school',renewalEmergencyName:'your emergency contact name',renewalEmergencyAddress:'your emergency contact address',renewalEmergencyPhone:'your emergency contact number'})[id]||id;}
@@ -300,12 +647,92 @@ function clearRenewalFieldError(id){
 function showRenewalFieldError(id,message){const field=document.getElementById(id);let wrap=field?.closest('.field')||document.querySelector(`[data-error-for="${id}"]`)?.closest('.field');if(!wrap)return;let error=wrap.querySelector(`[data-error-for="${id}"]`);if(!error){error=document.createElement('small');error.className='renewal-field-error';error.dataset.errorFor=id;wrap.appendChild(error);}error.textContent=message;error.hidden=false;if(field?.type==='hidden'){wrap.querySelectorAll('.renewal-date-parts select').forEach(x=>x.classList.add('renewal-invalid'));}else if(field){field.classList.add('renewal-invalid');}else{wrap.classList.add('renewal-invalid');}}
 function clearRenewalFieldErrors(){document.querySelectorAll('.renewal-field-error').forEach(e=>{e.hidden=true;e.textContent=''});document.querySelectorAll('.renewal-invalid').forEach(e=>e.classList.remove('renewal-invalid'));document.querySelectorAll('.renewal-reason-options').forEach(e=>e.classList.remove('renewal-invalid'));document.querySelectorAll('.renewal-wizard-card .upload-invalid').forEach(e=>e.classList.remove('upload-invalid'));document.querySelectorAll('.renewal-wizard-card .upload-error').forEach(e=>e.remove());}
 function renewalError(message){let box=document.getElementById('renewalInlineError');if(!box){box=document.createElement('p');box.id='renewalInlineError';box.className='renewal-inline-error';document.querySelector('.renewal-step-content')?.prepend(box);}if(box)box.textContent=message;else alert(message)}
-function updateRenewalFeePreview(){
- const d=getRenewalDraft(),reason=d.renewalReason||document.getElementById('renewalReason')?.value||'';const processing=d.renewalProcessing||'Regular';const courier=(d.renewalCourier||'No')==='Yes'||d.renewalDeliveryChoice==='Courier Delivery';const penalty=/lost|damaged/i.test(reason)?350:0;const base=processing==='Express'?1200:950;const courierFee=courier?150:0;const money=n=>'₱'+n.toLocaleString('en-PH');
- const penaltyPreview=document.getElementById('renewalPenaltyPreview');if(penaltyPreview)penaltyPreview.textContent=penalty?`A ₱350 lost/damaged passport penalty is included in your estimate.`:'No lost/damaged passport penalty selected.';
- const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val};set('renewalProcessingFee',money(base));set('renewalCourierFee',money(courierFee));set('renewalPenaltyFee',money(penalty));set('renewalTotalFee',money(base+courierFee+penalty));set('renewalProcessingTime',`Estimated processing: ${processing==='Express'?'5–7 working days (Express)':'10–12 working days (Regular)'}.`);
- const deliveryWrap=document.getElementById('renewalDeliveryAddressWrap');if(deliveryWrap)deliveryWrap.style.display=d.renewalCourier==='Yes'?'block':'none';
- const summary=document.getElementById('renewalReviewSummary');if(summary){const labels=[['Renewal reason',reason],['Legal Declaration',window.baiUploadFiles.renewalLegalDeclaration?.name||'Uploaded in this session'],['Valid Government ID',window.baiUploadFiles.renewalGovernmentId?.name||'Uploaded in this session'],['DFA Consular Office / Site',d.embassy],['Last name',d.renewalLastName],['First name',d.renewalFirstName],['Middle / maiden name',d.renewalMiddleName],['Sex',d.renewalSex],['Date of birth',d.renewalDob],['Place of birth',d.renewalBirthPlace],['Civil status',d.renewalCivilStatus],['Current passport number',d.renewalPassportNumber],['Passport date of issue',d.renewalPassportIssueDate],['Passport place of issue',d.renewalPassportIssuePlace],['Foreign passport details',d.renewalForeignPassport],['Father’s full name',d.renewalFatherName],['Father’s date of birth',d.renewalFatherDob],['Father’s citizenship',d.renewalFatherCitizenship],['Mother’s full name',d.renewalMotherName],['Mother’s date of birth',d.renewalMotherDob],['Mother’s citizenship',d.renewalMotherCitizenship],['Spouse’s full name',d.renewalSpouseName],['Spouse’s citizenship',d.renewalSpouseCitizenship],['Present address',d.renewalPresentAddress],['Permanent address',d.renewalPermanentAddress],['Mobile number',d.renewalMobile],['Email address',d.renewalEmail],['Occupation',d.renewalOccupation],['Employer / school',d.renewalEmployer],['Emergency contact name',d.renewalEmergencyName],['Emergency contact address',d.renewalEmergencyAddress],['Emergency contact number',d.renewalEmergencyPhone],['Oath accepted',d.renewalOathAccepted?'Yes':'No'],['Electronic signature',d.renewalSignature],['Processing type',processing],['Courier delivery',courier?'Yes':'No'],['Delivery address',courier?(d.renewalDeliveryAddress||'Not provided'):'Not applicable'],['Lost / damaged penalty',money(penalty)]];summary.innerHTML=labels.map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v||'Not provided')}</strong></div>`).join('')+`<div><span>Processing fee</span><strong>${money(base)}</strong></div><div><span>Courier fee</span><strong>${money(courierFee)}</strong></div><div><span>Estimated total</span><strong>${money(base+courierFee+penalty)}</strong></div>`;}
+function updateRenewalFeePreview() {
+  const d = getRenewalDraft();
+  const reason = d.renewalReason || document.getElementById('renewalReason')?.value || '';
+  const processing = d.renewalProcessing || 'Regular';
+  const courier = (d.renewalCourier || 'No') === 'Yes' || d.renewalDeliveryChoice === 'Courier Delivery';
+  const penalty = /lost|damaged/i.test(reason) ? 350 : 0;
+  const base = processing === 'Express' ? 1200 : 950;
+  const courierFee = courier ? 150 : 0;
+  const money = n => '₱' + n.toLocaleString('en-PH');
+
+  const penaltyPreview = document.getElementById('renewalPenaltyPreview');
+  if (penaltyPreview) {
+    penaltyPreview.textContent = penalty
+      ? 'A ₱350 lost/damaged passport penalty is included in your estimate.'
+      : 'No lost/damaged passport penalty selected.';
+  }
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  set('renewalProcessingFee', money(base));
+  set('renewalCourierFee', money(courierFee));
+  set('renewalPenaltyFee', money(penalty));
+  set('renewalTotalFee', money(base + courierFee + penalty));
+  set('renewalProcessingTime', `Estimated processing: ${processing === 'Express' ? '5–7 working days (Express)' : '10–12 working days (Regular)'}.`);
+
+  const deliveryWrap = document.getElementById('renewalDeliveryAddressWrap');
+  if (deliveryWrap) deliveryWrap.style.display = d.renewalCourier === 'Yes' ? 'block' : 'none';
+
+  const summary = document.getElementById('renewalReviewSummary');
+  if (summary) {
+    const conditionalDocRows =
+      reason === 'Citizen Status Changed'
+        ? [['Proof of Status Change Certificate', window.baiUploadFiles.renewalStatusChangeCertificate?.name || 'Uploaded in this session']]
+        : reason === 'Passport is Lost'
+          ? [['Proof of Lost Passport (Affidavit of Loss)', window.baiUploadFiles.renewalAffidavitOfLoss?.name || 'Uploaded in this session']]
+          : reason === 'Passport is Damaged'
+            ? [['Proof of Damaged Passport (Affidavit of Loss / Mutilation)', window.baiUploadFiles.renewalDamagedPassportProof?.name || 'Uploaded in this session']]
+            : [];
+
+    const labels = [
+      ['Renewal reason', reason],
+      ['Legal Declaration', window.baiUploadFiles.renewalLegalDeclaration?.name || 'Uploaded in this session'],
+      ['Valid Government ID', window.baiUploadFiles.renewalGovernmentId?.name || 'Uploaded in this session'],
+      ...conditionalDocRows,
+      ['Last name', d.renewalLastName],
+      ['First name', d.renewalFirstName],
+      ['Middle / maiden name', d.renewalMiddleName],
+      ['Sex', d.renewalSex],
+      ['Date of birth', d.renewalDob],
+      ['Place of birth', d.renewalBirthPlace],
+      ['Civil status', d.renewalCivilStatus],
+      ['Foreign passport details', d.renewalForeignPassport],
+      ['Current passport number', d.renewalPassportNumber],
+      ['Passport date of issue', d.renewalPassportIssueDate],
+      ['Passport place of issue', d.renewalPassportIssuePlace],
+      ['DFA Consular Office / Site', d.embassy],
+      ['Father’s full name', d.renewalFatherName],
+      ['Father’s date of birth', d.renewalFatherDob],
+      ['Father’s citizenship', d.renewalFatherCitizenship],
+      ['Mother’s full name', d.renewalMotherName],
+      ['Mother’s date of birth', d.renewalMotherDob],
+      ['Mother’s citizenship', d.renewalMotherCitizenship],
+      ['Spouse’s full name', d.renewalSpouseName],
+      ['Spouse’s citizenship', d.renewalSpouseCitizenship],
+      ['Present address', d.renewalPresentAddress],
+      ['Permanent address', d.renewalPermanentAddress],
+      ['Mobile number', d.renewalMobile],
+      ['Email address', d.renewalEmail],
+      ['Occupation', d.renewalOccupation],
+      ['Employer / school', d.renewalEmployer],
+      ['Emergency contact name', d.renewalEmergencyName],
+      ['Emergency contact address', d.renewalEmergencyAddress],
+      ['Emergency contact number', d.renewalEmergencyPhone],
+      ['Oath accepted', d.renewalOathAccepted ? 'Yes' : 'No'],
+      ['Electronic signature', d.renewalSignature],
+      ['Processing type', processing],
+      ['Courier delivery', courier ? 'Yes' : 'No'],
+      ['Delivery address', courier ? (d.renewalDeliveryAddress || 'Not provided') : 'Not applicable'],
+      ['Lost / damaged penalty', money(penalty)]
+    ];
+    summary.innerHTML =
+      labels.map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(v || 'Not provided')}</strong></div>`).join('') +
+      `<div><span>Processing fee</span><strong>${money(base)}</strong></div><div><span>Courier fee</span><strong>${money(courierFee)}</strong></div><div><span>Estimated total</span><strong>${money(base + courierFee + penalty)}</strong></div>`;
+  }
 }
 function submitRenewal(){
  saveRenewalDraft();const existing=getActiveApplication();if(existing){sessionStorage.setItem('baiCurrentApplicationId',existing.id);renewalError('You already have an active passport application. Check its status before starting another application.');go('status');return;}
@@ -390,44 +817,114 @@ function verify(){
 
 
 
-function accountApplicationsKey(id){ return `baiApplications_${id}`; }
-function getApplications(){ const id=sessionStorage.getItem('baiAccountId'); if(id){ try{ const raw=localStorage.getItem(accountApplicationsKey(id)); if(raw!==null){ const apps=JSON.parse(raw); sessionStorage.setItem('baiApplications',JSON.stringify(apps)); return Array.isArray(apps)?apps:[]; } }catch(e){} } return getApplicationsSafeForAccount(); }
-function saveApplications(apps){ const list=Array.isArray(apps)?apps:[]; sessionStorage.setItem('baiApplications',JSON.stringify(list)); const id=sessionStorage.getItem('baiAccountId'); if(id){ localStorage.setItem(accountApplicationsKey(id),JSON.stringify(list)); const accounts=getAccountRegistry(); const idx=accounts.findIndex(a=>a.id===id); if(idx>=0){ accounts[idx].applications=list; saveAccountRegistry(accounts); } } }
-function getCurrentApplication(){
- const apps=getApplications();
- const currentId=sessionStorage.getItem('baiCurrentApplicationId');
- return apps.find(a=>a.id===currentId) || apps[0] || {id:'No application linked',type:'No application',arn:'',payment:'',eReceipt:'',email:'',status:'NOT LINKED'};
+/* ==========================================================================
+   7. Application Storage, Form Error Helpers & One-Active-Application Rule
+   ========================================================================== */
+
+function accountApplicationsKey(id) {
+  return `baiApplications_${id}`;
 }
-function clearFormErrors(scope){
-  (scope||document).querySelectorAll('.field-error').forEach(el=>el.remove());
-  (scope||document).querySelectorAll('.field.invalid').forEach(el=>el.classList.remove('invalid'));
-  (scope||document).querySelectorAll('.agreement.invalid').forEach(el=>el.classList.remove('invalid'));
+
+/** Reads the member's passport applications from localStorage (falling back to sessionStorage). */
+function getApplications() {
+  const id = sessionStorage.getItem('baiAccountId');
+  if (id) {
+    try {
+      const raw = localStorage.getItem(accountApplicationsKey(id));
+      if (raw !== null) {
+        const apps = JSON.parse(raw);
+        sessionStorage.setItem('baiApplications', JSON.stringify(apps));
+        return Array.isArray(apps) ? apps : [];
+      }
+    } catch (e) {}
+  }
+  return getApplicationsSafeForAccount();
 }
-function showFieldError(field,message){
-  if(!field) return;
-  const wrapper=field.closest('.field');
-  if(wrapper){ wrapper.classList.add('invalid'); const err=document.createElement('div'); err.className='field-error'; err.textContent=message; wrapper.appendChild(err); }
+
+/** Persists applications to sessionStorage, per-member localStorage, and `baiAccountRegistry`. */
+function saveApplications(apps) {
+  const list = Array.isArray(apps) ? apps : [];
+  sessionStorage.setItem('baiApplications', JSON.stringify(list));
+  const id = sessionStorage.getItem('baiAccountId');
+  if (id) {
+    localStorage.setItem(accountApplicationsKey(id), JSON.stringify(list));
+    const accounts = getAccountRegistry();
+    const idx = accounts.findIndex(a => a.id === id);
+    if (idx >= 0) {
+      accounts[idx].applications = list;
+      saveAccountRegistry(accounts);
+    }
+  }
 }
-function showAgreementError(checkbox,message){
-  const label=checkbox?.closest('.agreement'); if(label){ label.classList.add('invalid'); const err=document.createElement('div'); err.className='field-error agreement-error'; err.textContent=message; label.appendChild(err); }
+
+function getCurrentApplication() {
+  const apps = getApplications();
+  const currentId = sessionStorage.getItem('baiCurrentApplicationId');
+  return (
+    apps.find(a => a.id === currentId) ||
+    apps[0] || {
+      id: 'No application linked',
+      type: 'No application',
+      arn: '',
+      payment: '',
+      eReceipt: '',
+      email: '',
+      status: 'NOT LINKED'
+    }
+  );
 }
-function sanitizeName(input){ input.value=input.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s'-]/g,''); }
 
-
-
-
-
-function formatPersonName(value){ return value.trim().toLowerCase().split(/(\s+)/).map(part=>/^\s+$/.test(part)?part:(part?part.charAt(0).toUpperCase()+part.slice(1):part)).join(''); }
-
-
-function getActiveApplication(){
- const apps=getApplications();
- return apps.find(a=>!['COMPLETED','CANCELLED'].includes(String(a.status||'').toUpperCase())) || null;
+function clearFormErrors(scope) {
+  (scope || document).querySelectorAll('.field-error').forEach(el => el.remove());
+  (scope || document).querySelectorAll('.field.invalid').forEach(el => el.classList.remove('invalid'));
+  (scope || document).querySelectorAll('.agreement.invalid').forEach(el => el.classList.remove('invalid'));
 }
-function hasActiveApplication(){
- return !!getActiveApplication();
+
+function showFieldError(field, message) {
+  if (!field) return;
+  const wrapper = field.closest('.field');
+  if (wrapper) {
+    wrapper.classList.add('invalid');
+    const err = document.createElement('div');
+    err.className = 'field-error';
+    err.textContent = message;
+    wrapper.appendChild(err);
+  }
 }
-/* ===== New Passport Application wizard (5 steps, mirrors the renewal flow) ===== */
+
+function showAgreementError(checkbox, message) {
+  const label = checkbox?.closest('.agreement');
+  if (label) {
+    label.classList.add('invalid');
+    const err = document.createElement('div');
+    err.className = 'field-error agreement-error';
+    err.textContent = message;
+    label.appendChild(err);
+  }
+}
+
+function sanitizeName(input) {
+  input.value = input.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s'-]/g, '');
+}
+
+function formatPersonName(value) {
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/(\s+)/)
+    .map(part => (/^\s+$/.test(part) ? part : (part ? part.charAt(0).toUpperCase() + part.slice(1) : part)))
+    .join('');
+}
+
+/** Returns any non-completed, non-cancelled application to enforce the 1-active-application rule. */
+function getActiveApplication() {
+  const apps = getApplications();
+  return apps.find(a => !['COMPLETED', 'CANCELLED'].includes(String(a.status || '').toUpperCase())) || null;
+}
+
+/* ==========================================================================
+   8. New Passport Application Wizard (5 Steps) & DFA ARN Linking
+   ========================================================================== */
 const NP_SITES=['DFA Office of Consular Affairs - Aseana, Parañaque','DFA Consular Office NCR Central - Pasig','DFA Consular Office NCR East - Mandaluyong','DFA Consular Office NCR North - Quezon City','DFA Consular Office NCR Northeast - Quezon City','DFA Consular Office NCR South - Muntinlupa','DFA Consular Office NCR West - Manila'];
 const NP_TYPES=['Adult (18 years old and above)','Minor (below 18 years old)'];
 function npIsMinor(type){return String(type||'').startsWith('Minor')}
@@ -475,17 +972,103 @@ function saveNpDraft(){
  if(minorWrap)minorWrap.style.display=minor?'contents':'none';
  updateNpFeePreview();
 }
-function newApplication(){
- const step=npStep(),d=getNpDraft(),minor=npIsMinor(d.npApplicantType);
- const titles=['Applicant & Documents','Personal & Family Details','Contact & Emergency','Oath','Fee & Review'];
- const existing=getActiveApplication();
- let body='';
- if(step===1) body=`<div class="renewal-form-grid">${existing?`<div class="field full"><p class="renewal-help" style="color:#b42318">You already have an active ${esc(existing.type)} application. Only one active passport application is allowed at a time, so you will not be able to submit a new one until it is completed or cancelled.</p></div>`:''}<div class="field full"><label for="npApplicantType">Applicant Type <span class="renewal-required">*</span></label><select data-np-field id="npApplicantType" required onchange="saveNpDraft()"><option value="">Select applicant type</option>${NP_TYPES.map(o=>`<option value="${o}" ${d.npApplicantType===o?'selected':''}>${o}</option>`).join('')}</select><small class="renewal-field-error" data-error-for="npApplicantType" hidden></small><p class="renewal-help"><a href="#" onclick="go('help-center');setTimeout(()=>browseHelpCategory('Documents / Requirements'),120);return false;">Browse Knowledge Base: Valid IDs &amp; Passport Requirements</a></p></div><div class="field full"><label>PSA Birth Certificate <span class="renewal-required">*</span></label>${uploadBox('npBirthCertificate','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB. Select the file again if you reopen this form in a new browser session.</p></div><div class="field full" id="npAdultUpload" style="display:${d.npApplicantType&&!minor?'block':'none'}"><label>Valid Government ID <span class="renewal-required">*</span></label>${uploadBox('npGovernmentId','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB.</p></div><div id="npMinorUpload" style="display:${minor?'contents':'none'}"><div class="field full"><label>Parent / Guardian Consent <span class="renewal-required">*</span></label>${uploadBox('npParentConsent','','wide-upload')}<p class="renewal-help">Upload the signed consent form of the parent or legal guardian. PDF, JPG or PNG; maximum 10 MB.</p></div><div class="field full"><label>Valid ID of Parent / Guardian <span class="renewal-required">*</span></label>${uploadBox('npParentId','','wide-upload')}<p class="renewal-help">PDF, JPG or PNG; maximum 10 MB.</p></div></div></div>`;
- if(step===2) body=`<div class="renewal-form-grid">${npField('npLastName','Last Name')}${npField('npFirstName','First Name')}${npField('npMiddleName','Middle Name / Maiden Name','text',false)}${npSelect('npSex','Sex',['Male','Female'])}${npDateField('npDob','Date of Birth')}${npField('npBirthPlace','Place of Birth')}${npSelect('npCivilStatus','Civil Status',['Single','Married','Widowed','Divorced','Separated'])}${npSelect('npEmbassy','DFA Consular Office / Site',NP_SITES,true,true)}<div class="field full"><h3 class="renewal-subheading">Family Information</h3></div>${npField('npFatherName','Father’s Full Name')}${npField('npFatherDob','Father’s Date of Birth','date')}${npField('npFatherCitizenship','Father’s Citizenship')}${npField('npMotherName','Mother’s Full Name')}${npField('npMotherDob','Mother’s Date of Birth','date')}${npField('npMotherCitizenship','Mother’s Citizenship')}<div id="npSpouseFields" style="display:${d.npCivilStatus==='Married'?'contents':'none'}">${npField('npSpouseName','Spouse’s Full Name','text',false)}${npField('npSpouseCitizenship','Spouse’s Nationality','text',false)}</div></div>`;
- if(step===3) body=`<div class="renewal-form-grid">${npField('npPresentAddress','Present Address')}${npField('npPermanentAddress','Permanent Address')}${npField('npMobile','Mobile Number','tel')}${npField('npEmail','Email Address','email')}${npField('npOccupation','Occupation')}${npField('npEmployer','Employer / School')}${npField('npEmergencyName','Emergency Contact Name')}${npField('npEmergencyAddress','Emergency Contact Address')}${npField('npEmergencyPhone','Emergency Contact Number','tel')}</div>`;
- if(step===4) body=`<div class="renewal-oath"><h3>Applicant’s Oath</h3><p>I declare that I am a Filipino citizen; that all information supplied in this application is true and correct; that the documents submitted are authentic; and that I do not currently hold a valid Philippine passport. I understand that false statements may be punishable under Republic Act No. 8239.</p><div class="field"><label class="renewal-oath-check"><input data-np-field id="npOathAccepted" type="checkbox" ${d.npOathAccepted?'checked':''} onchange="saveNpDraft()"> I have read and accept the sworn declaration. <span class="renewal-required">*</span></label><small class="renewal-field-error" data-error-for="npOathAccepted" hidden></small></div><div class="field renewal-signature-field"><label for="npSignature">${minor?'Type the full name of the parent / guardian as electronic signature':'Type your full name as your electronic signature'} <span class="renewal-required">*</span></label><input data-np-field id="npSignature" value="${npValue('npSignature')}" oninput="saveNpDraft()" placeholder="Full legal name"></div></div>`;
- if(step===5) body=`<div class="renewal-form-grid">${npSelect('npProcessing','Processing Type',['Regular','Express'])}${npSelect('npCourier','Courier Delivery',['No','Yes'])}<div id="npDeliveryAddressWrap" class="field full" style="display:${d.npCourier==='Yes'?'block':'none'}">${npField('npDeliveryAddress','Preferred Delivery Address','text',true)}</div><div class="field full"><div class="renewal-total-card"><div><span>Processing fee</span><strong id="npProcessingFee">₱950</strong></div><div><span>Courier</span><strong id="npCourierFee">₱0</strong></div><div class="renewal-grand-total"><span>Estimated total</span><strong id="npTotalFee">₱950</strong></div><p id="npProcessingTime">Estimated processing: 10–12 working days (Regular).</p></div></div><div class="field full"><h3 class="renewal-subheading">Review your details</h3><div id="npReviewSummary" class="renewal-review-summary"></div></div></div>`;
- return `<div class="auth-screen terminal-auth renewal-wizard-screen"><div class="registration-card renewal-card renewal-wizard-card"><button class="auth-back auth-back-form back-btn" onclick="go('dashboard')" aria-label="Back to dashboard">← Dashboard</button><div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>NEW PASSPORT APPLICATION</h1><p>Complete each step to submit your new passport application.</p></div></div><div class="renewal-progress" aria-label="Application progress">${titles.map((t,i)=>`<div class="renewal-progress-item ${i+1<step?'complete':i+1===step?'active':''}"><span>${i+1<step?'✓':i+1}</span><small>${t}</small></div>`).join('')}</div><div class="renewal-step-heading"><span>STEP ${step} OF 5</span><h2>${titles[step-1]}</h2></div><div class="renewal-step-content">${body}</div><div class="renewal-step-actions">${step>1?'<button class="secondary-action" type="button" onclick="npPrevious()">Back</button>':'<button class="secondary-action" type="button" onclick="go(\'dashboard\')">Back</button>'}${step<5?'<button class="primary" type="button" onclick="npNext()">Next</button>':'<button class="primary" type="button" onclick="submitNewPassport()">Submit Application</button>'}</div><p class="renewal-form-footnote">Fields marked * are required. Your entries are preserved when moving between steps.</p></div></div>`;
+function newApplication() {
+  const step = npStep();
+  const d = getNpDraft();
+  const minor = npIsMinor(d.npApplicantType);
+  const titles = ['Applicant & Documents', 'Personal & Family Details', 'Contact & Emergency', 'Oath', 'Fee & Review'];
+  const existing = getActiveApplication();
+  let body = '';
+
+  if (step === 1) {
+    body = `
+      <div class="renewal-form-grid">
+        ${existing
+          ? `<div class="field full"><p class="renewal-help" style="color:#b42318">You already have an active ${esc(existing.type)} application. Only one active passport application is allowed at a time, so you will not be able to submit a new one until it is completed or cancelled.</p></div>`
+          : ''}
+        <div class="field full">
+          <label for="npApplicantType">Applicant Type <span class="renewal-required">*</span></label>
+          <select data-np-field id="npApplicantType" required onchange="saveNpDraft()">
+            <option value="">Select applicant type</option>
+            ${NP_TYPES.map(o => `<option value="${o}" ${d.npApplicantType === o ? 'selected' : ''}>${o}</option>`).join('')}
+          </select>
+          <small class="renewal-field-error" data-error-for="npApplicantType" hidden></small>
+          <p class="renewal-help">
+            <a class="faq-inline-link" href="#knowledge-article?id=KB-FAQ-REQ-001&from=new-application" onclick="openRequirementsFaq('new-application');return false;">
+              View FAQ: List of Requirements, Valid IDs &amp; Supporting Documents →
+            </a>
+          </p>
+        </div>
+        <div class="field full">
+          <label>PSA Birth Certificate <span class="renewal-required">*</span></label>
+          ${uploadBox('npBirthCertificate', '', 'wide-upload')}
+          <p class="renewal-help">PDF, JPG or PNG; maximum 10 MB. Select the file again if you reopen this form in a new browser session.</p>
+        </div>
+        <div class="field full" id="npAdultUpload" style="display:${d.npApplicantType && !minor ? 'block' : 'none'}">
+          <label>Valid Government ID <span class="renewal-required">*</span></label>
+          ${uploadBox('npGovernmentId', '', 'wide-upload')}
+          <p class="renewal-help">
+            PDF, JPG or PNG; maximum 10 MB.
+            <a class="faq-inline-link" href="#knowledge-article?id=KB-FAQ-REQ-001&from=new-application" onclick="openRequirementsFaq('new-application');return false;">See FAQ of Valid IDs &amp; Requirements</a>
+          </p>
+        </div>
+        <div id="npMinorUpload" style="display:${minor ? 'contents' : 'none'}">
+          <div class="field full">
+            <label>Parent / Guardian Consent <span class="renewal-required">*</span></label>
+            ${uploadBox('npParentConsent', '', 'wide-upload')}
+            <p class="renewal-help">Upload the signed consent form of the parent or legal guardian. PDF, JPG or PNG; maximum 10 MB.</p>
+          </div>
+          <div class="field full">
+            <label>Valid ID of Parent / Guardian <span class="renewal-required">*</span></label>
+            ${uploadBox('npParentId', '', 'wide-upload')}
+            <p class="renewal-help">
+              PDF, JPG or PNG; maximum 10 MB.
+              <a class="faq-inline-link" href="#knowledge-article?id=KB-FAQ-REQ-001&from=new-application" onclick="openRequirementsFaq('new-application');return false;">See FAQ of Valid IDs &amp; Requirements</a>
+            </p>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (step === 2) {
+    // DFA Consular Office / Site placed directly in the Personal Details 2-column grid
+    body = `
+      <div class="renewal-form-grid">
+        ${npField('npLastName', 'Last Name')}
+        ${npField('npFirstName', 'First Name')}
+        ${npField('npMiddleName', 'Middle Name / Maiden Name', 'text', false)}
+        ${npSelect('npSex', 'Sex', ['Male', 'Female'])}
+        ${npDateField('npDob', 'Date of Birth')}
+        ${npField('npBirthPlace', 'Place of Birth')}
+        ${npSelect('npCivilStatus', 'Civil Status', ['Single', 'Married', 'Widowed', 'Divorced', 'Separated'])}
+        ${npSelect('npEmbassy', 'DFA Consular Office / Site', NP_SITES, true, false)}
+        <div class="field full"><h3 class="renewal-subheading">Family Information</h3></div>
+        ${npField('npFatherName', 'Father’s Full Name')}
+        ${npField('npFatherDob', 'Father’s Date of Birth', 'date')}
+        ${npField('npFatherCitizenship', 'Father’s Citizenship')}
+        ${npField('npMotherName', 'Mother’s Full Name')}
+        ${npField('npMotherDob', 'Mother’s Date of Birth', 'date')}
+        ${npField('npMotherCitizenship', 'Mother’s Citizenship')}
+        <div id="npSpouseFields" style="display:${d.npCivilStatus === 'Married' ? 'contents' : 'none'}">
+          ${npField('npSpouseName', 'Spouse’s Full Name', 'text', false)}
+          ${npField('npSpouseCitizenship', 'Spouse’s Nationality', 'text', false)}
+        </div>
+      </div>`;
+  }
+
+  if (step === 3) {
+    body = `<div class="renewal-form-grid">${npField('npPresentAddress', 'Present Address')}${npField('npPermanentAddress', 'Permanent Address')}${npField('npMobile', 'Mobile Number', 'tel')}${npField('npEmail', 'Email Address', 'email')}${npField('npOccupation', 'Occupation')}${npField('npEmployer', 'Employer / School')}${npField('npEmergencyName', 'Emergency Contact Name')}${npField('npEmergencyAddress', 'Emergency Contact Address')}${npField('npEmergencyPhone', 'Emergency Contact Number', 'tel')}</div>`;
+  }
+
+  if (step === 4) {
+    body = `<div class="renewal-oath"><h3>Applicant’s Oath</h3><p>I declare that I am a Filipino citizen; that all information supplied in this application is true and correct; that the documents submitted are authentic; and that I do not currently hold a valid Philippine passport. I understand that false statements may be punishable under Republic Act No. 8239.</p><div class="field"><label class="renewal-oath-check"><input data-np-field id="npOathAccepted" type="checkbox" ${d.npOathAccepted ? 'checked' : ''} onchange="saveNpDraft()"> I have read and accept the sworn declaration. <span class="renewal-required">*</span></label><small class="renewal-field-error" data-error-for="npOathAccepted" hidden></small></div><div class="field renewal-signature-field"><label for="npSignature">${minor ? 'Type the full name of the parent / guardian as electronic signature' : 'Type your full name as your electronic signature'} <span class="renewal-required">*</span></label><input data-np-field id="npSignature" value="${npValue('npSignature')}" oninput="saveNpDraft()" placeholder="Full legal name"></div></div>`;
+  }
+
+  if (step === 5) {
+    body = `<div class="renewal-form-grid">${npSelect('npProcessing', 'Processing Type', ['Regular', 'Express'])}${npSelect('npCourier', 'Courier Delivery', ['No', 'Yes'])}<div id="npDeliveryAddressWrap" class="field full" style="display:${d.npCourier === 'Yes' ? 'block' : 'none'}">${npField('npDeliveryAddress', 'Preferred Delivery Address', 'text', true)}</div><div class="field full"><div class="renewal-total-card"><div><span>Processing fee</span><strong id="npProcessingFee">₱950</strong></div><div><span>Courier</span><strong id="npCourierFee">₱0</strong></div><div class="renewal-grand-total"><span>Estimated total</span><strong id="npTotalFee">₱950</strong></div><p id="npProcessingTime">Estimated processing: 10–12 working days (Regular).</p></div></div><div class="field full"><h3 class="renewal-subheading">Review your details</h3><div id="npReviewSummary" class="renewal-review-summary"></div></div></div>`;
+  }
+
+  return `<div class="auth-screen terminal-auth renewal-wizard-screen"><div class="registration-card renewal-card renewal-wizard-card"><button class="auth-back auth-back-form back-btn" onclick="go('dashboard')" aria-label="Back to dashboard">← Dashboard</button><div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>NEW PASSPORT APPLICATION</h1><p>Complete each step to submit your new passport application.</p></div></div><div class="renewal-progress" aria-label="Application progress">${titles.map((t, i) => `<div class="renewal-progress-item ${i + 1 < step ? 'complete' : i + 1 === step ? 'active' : ''}"><span>${i + 1 < step ? '✓' : i + 1}</span><small>${t}</small></div>`).join('')}</div><div class="renewal-step-heading"><span>STEP ${step} OF 5</span><h2>${titles[step - 1]}</h2></div><div class="renewal-step-content">${body}</div><div class="renewal-step-actions">${step > 1 ? '<button class="secondary-action" type="button" onclick="npPrevious()">Back</button>' : '<button class="secondary-action" type="button" onclick="go(\'dashboard\')">Back</button>'}${step < 5 ? '<button class="primary" type="button" onclick="npNext()">Next</button>' : '<button class="primary" type="button" onclick="submitNewPassport()">Submit Application</button>'}</div><p class="renewal-form-footnote">Fields marked * are required. Your entries are preserved when moving between steps.</p></div></div>`;
 }
 function npPrevious(){saveNpDraft();sessionStorage.setItem('baiNewPassportStep',String(Math.max(1,npStep()-1)));go('new-application')}
 function npRequiredUploads(type){return !type?['npBirthCertificate']:npIsMinor(type)?['npBirthCertificate','npParentConsent','npParentId']:['npBirthCertificate','npGovernmentId']}
@@ -582,16 +1165,9 @@ function applicationLinked(){
 }
 
 
-function submitComplaint(event){
- event.preventDefault();
- const email = document.getElementById('complaintEmail');
- if(email && !email.checkValidity()){
-   email.reportValidity();
-   return;
- }
- go('complaint-done');
-}
-
+/* ==========================================================================
+   9. Member Dashboard, Automated Status Simulation, Profile & Settings
+   ========================================================================== */
 
 function dashboard(){
  const apps=getApplications(), current=apps.length?getCurrentApplication():null;
@@ -614,6 +1190,11 @@ function dashboard(){
  </div>`;
 }
 
+/**
+ * Once an Admin marks an application `Approved`, automatically advances it through
+ * `Processing` (3s) -> `Ready for Release` (6s) -> `Released / Collected` (9s)
+ * to demonstrate the full post-review lifecycle in the prototype.
+ */
 function runPassportStatusSimulation(){
  if(window.__baiPassportStatusSimulation) return;
  window.__baiPassportStatusSimulation=window.setInterval(()=>{
@@ -642,8 +1223,12 @@ function status(){
  ${current?`<div id="statusResult" class="status-result visible"><div class="status-result-head"><div><span class="status-label">PASSPORT APPLICATION</span><h3>Application Details</h3></div><span class="current-status">${esc(statusLabel(applicationStatus(current)))}</span></div><div class="reference-grid"><div><span>Application Type</span><b>${esc(current.type)}</b></div><div><span>BAI Application ID</span><b>${esc(current.id)}</b></div><div><span>Appointment Reference No. (ARN)</span><b>${esc(current.arn||'Not linked')}</b></div><div><span>Payment Reference</span><b>${esc(current.payment||'Not linked')}</b></div><div><span>eReceipt No.</span><b>${esc(current.eReceipt||'Not linked')}</b></div>${current.type==='Passport Renewal'?`<div><span>Renewal ID</span><b>${esc(current.renewalId||current.id)}</b></div><div><span>Estimated Total Fee</span><b>₱${Number(current.totalFee||0).toLocaleString('en-PH')}</b></div><div><span>Administrator Remarks</span><b>${esc(current.administratorRemarks||'No remarks yet.')}</b></div>`:''}</div><div class="status-timeline" id="status-timeline-section">${buildTimeline(current.status)}</div><p class="status-note">Your application references are associated with this passport application record.</p>${current && !['COMPLETED','RELEASED / COLLECTED','CANCELLED','REJECTED'].includes(String(applicationStatus(current)).toUpperCase())?`<div class="status-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">${String(current.status||'').toUpperCase()==='READY FOR RELEASE'?`<button class="primary" onclick="confirmApplicationReceived('${esc(current.id)}')">Confirm Passport Received</button>`:''}<button class="secondary-action" onclick="cancelApplication('${esc(current.id)}')">Cancel Application</button></div>`:''}</div>`:''}
  </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
-function viewApplication(id){ if(!getApplications().some(a=>a.id===id)) return; sessionStorage.setItem('baiCurrentApplicationId',id); go('status'); window.setTimeout(()=>document.getElementById('status-timeline-section')?.scrollIntoView({behavior:'smooth',block:'start'}),0); }
-function showApplicationStatus(){ const first=getApplications()[0]; if(first){sessionStorage.setItem('baiCurrentApplicationId',first.id);go('status');} }
+function viewApplication(id) {
+  if (!getApplications().some(a => a.id === id)) return;
+  sessionStorage.setItem('baiCurrentApplicationId', id);
+  go('status');
+  window.setTimeout(() => document.getElementById('status-timeline-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+}
 
 function formatDisplayDate(value){
  const v=String(value||'').trim();
@@ -692,7 +1277,7 @@ function changeEmail(){
        </span>
        <div class="user-menu" id="userMenu">
          <button class="user-menu-toggle" onclick="toggleUserMenu(event)" aria-expanded="false">
-           <span>${esc(sessionStorage.getItem('baiAccountName')||'Juan Dela Cruz')}</span><span class="chevron">⌄</span>
+           <span>${esc(accountName())}</span><span class="chevron">⌄</span>
          </button>
          <div class="user-dropdown">
            <button onclick="go('profile'); closeUserMenu()">My Profile</button>
@@ -863,16 +1448,10 @@ function logout(){
   sessionStorage.removeItem('baiPendingLoginAccountId');
   go('login');
 }
-document.addEventListener('click',function(e){
-  const menu=document.getElementById('userMenu');
-  if(menu && !menu.contains(e.target)) closeUserMenu();
+document.addEventListener('click', function (e) {
+  const menu = document.getElementById('userMenu');
+  if (menu && !menu.contains(e.target)) closeUserMenu();
 });
-
-function togglePassword(btn){
- const input=btn.parentElement.querySelector('input');
- input.type=input.type==='password'?'text':'password';
-}
-
 
 function settings(){
  return `<div class="dashboard"><aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav"><button onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button class="active"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button></nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
@@ -945,29 +1524,85 @@ function goQuery(page,params={}){
   window.scrollTo(0,0);
 }
 
-function seedKnowledgeBase(){
-  const existing=jsonGet(HELP_KB_KEY,null);
-  const additions=[
+function seedKnowledgeBase() {
+  const existing = jsonGet(HELP_KB_KEY, null);
+  const faqRequirementsEntry = {
+    id: 'KB-FAQ-REQ-001',
+    type: 'faq',
+    title: 'List of Passport Requirements, Valid IDs, and Supporting Documents',
+    category: 'Documents / Requirements',
+    tags: [
+      'faq',
+      'requirements',
+      'valid id',
+      'valid ids',
+      'accepted ids',
+      'documents',
+      'supporting documents',
+      'new passport',
+      'renewal',
+      'affidavit of loss',
+      'status change',
+      'birth certificate'
+    ],
+    body: [
+      'Accepted Valid Government IDs (must be original, valid, readable, and match your MyBAI details):',
+      '• Philippine Identification (PhilID / ePhilID / National ID)',
+      '• Land Transportation Office (LTO) Driver’s License',
+      '• Unified Multi-Purpose ID (UMID) / SSS / GSIS eCard',
+      '• Professional Regulation Commission (PRC) ID',
+      '• Voter’s ID or COMELEC Voter’s Certification',
+      '• Philippine Postal ID, OWWA E-Card, PNP Permit to Carry / ID, Senior Citizen (OSCA) ID, or DFA-listed government IDs',
+      '• For Minors: School ID or Certificate of Enrollment plus a valid government ID of the accompanying parent or legal guardian',
+      '',
+      'New Passport Application Requirements:',
+      '• Adult Applicants (18+): PSA Birth Certificate and at least one (1) Valid Government ID',
+      '• Minor Applicants (below 18): PSA Birth Certificate, signed Parent / Guardian Consent, and Valid Government ID of the Parent / Legal Guardian',
+      '',
+      'Passport Renewal Requirements & Conditional Supporting Documents:',
+      '• Core Renewal Documents: Accomplished Legal Declaration, Valid Government ID, and current ePassport details',
+      '• Passport is Expiring or Expired: Current ePassport data page and Valid Government ID',
+      '• Passport is Lost: Notarized Affidavit of Loss (plus Police Report if the lost passport was still valid; ₱350 penalty applies)',
+      '• Passport is Damaged: Notarized Affidavit of Loss / Explanation (Mutilation) and clear proof of the damaged passport (₱350 penalty applies)',
+      '• Citizen Status Changed: Proof of Status Change Certificate (e.g., PSA Marriage Certificate, Annotated Birth/Marriage Certificate, Court Decree, or Citizenship Reacquisition / Naturalization Certificate)',
+      '',
+      'Upload & Appointment Reminders:',
+      '• Accepted upload formats: PDF, JPG, or PNG (maximum 10 MB per file)',
+      '• Always bring your original documents and clear photocopies to your selected DFA Consular Office / Site appointment.'
+    ].join('\n'),
+    createdAt: nowIso(),
+    updatedAt: nowIso()
+  };
+
+  const additions = [
+    faqRequirementsEntry,
     {id:'KB-STATUS-002',type:'article',title:'Understanding passport application status',category:'Application Status',tags:['status','processing','approved','completed','cancelled'],body:'Your passport application status shows the current stage of processing. Review the status details and timeline in Check Status for the latest information available for that application.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-STATUS-003',type:'faq',title:'What does Processing mean?',category:'Application Status',tags:['processing','status','application'],body:'Processing means the passport application is still being handled and has not reached a final completed or cancelled state. Check the application timeline for the latest update.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-RENEW-002',type:'article',title:'How to apply for passport renewal',category:'Passport Renewal',tags:['renewal','apply','application','existing passport'],body:'Open Passport Renewal from your Dashboard, provide the requested passport and identification information, complete the applicable declarations, choose a DFA Consular Office / Site, and submit the renewal application.',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-002',type:'article',title:'What identification documents can I submit?',category:'Documents / Requirements',tags:['documents','identification','id','requirements'],body:'Use the identification documents requested by the current application flow. Make sure the submitted document is valid, readable, and that the personal information matches the information entered in MyBAI.',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-VALID-001',type:'article',title:'Valid IDs accepted for passport applications',category:'Documents / Requirements',tags:['valid id','government id','identification','accepted ids','requirements','passport'],body:'DFA-published information lists examples of identification documents that may be accepted, including SSS, GSIS, LTO, PRC, PhilSys, OWWA, COMELEC, PNP, LGU/OSCA or barangay-issued IDs, CAAP, PhilPost, PSA, MARINA, and DFA IDs. The ID must meet current DFA validity and condition requirements, and the accepted list may change. Verify the latest official DFA list before your appointment. Official reference: DFA Passport Information Board (https://consular.dfa.gov.ph/images/PDF/Information_Boards/IB-PASSPORT-23-01-2023.pdf).',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-RENEW-001',type:'article',title:'Adult passport renewal requirements',category:'Documents / Requirements',tags:['adult','passport renewal','requirements','current passport','appointment','documents'],body:'DFA guidance lists a confirmed online appointment, accomplished application form, personal appearance, and the current ePassport with a photocopy of its data page as core adult renewal requirements. Additional documents may be required depending on the applicant’s circumstances. Bring the original documents and photocopies required by the latest DFA checklist. This prototype’s upload fields do not replace the documents DFA requires in person. Official reference: DFA Consular Affairs (https://consular.dfa.gov.ph/).',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-NEW-001',type:'article',title:'New passport application requirements',category:'Documents / Requirements',tags:['new passport','first time','requirements','documents','birth certificate','id'],body:'Requirements for a new passport depend on the applicant’s age and circumstances. Applicants should check the latest DFA checklist for the applicable application form, personal appearance, PSA documents, and acceptable identification documents. Bring required original documents and photocopies to the appointment. This prototype’s application flow is for demonstration and does not replace the official DFA checklist. Official reference: DFA Consular Affairs (https://consular.dfa.gov.ph/).',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-STATUS-001',type:'article',title:'Documents for a change in civil or citizenship status',category:'Documents / Requirements',tags:['citizen status changed','civil status','marriage','status change','certificate','requirements'],body:'When civil or citizenship status has changed, DFA may require the original official certificate or supporting civil-registry, court, or government document that proves the change. Depending on the circumstances, this may include a PSA marriage certificate, annotated birth or marriage certificate, court order, or citizenship/naturalization document. The exact supporting records depend on the type of change. Confirm the current requirements with DFA before your appointment. This prototype’s upload field is not a substitute for original documents DFA may require.',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-LOST-001',type:'article',title:'Requirements for a lost passport',category:'Documents / Requirements',tags:['lost passport','affidavit of loss','police report','requirements'],body:'DFA requirements for a lost passport include an Affidavit of Loss. If the lost passport was still valid, a police report and a clearing period may also apply. Further requirements depend on the passport and applicant circumstances. Check the latest official DFA requirements before your appointment. The prototype upload is for demonstration and does not replace original documents DFA may require.',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-DOC-DAMAGED-001',type:'article',title:'Requirements for a damaged passport',category:'Documents / Requirements',tags:['damaged passport','requirements','supporting documents'],body:'For a damaged passport, bring the damaged passport and check DFA’s current damaged-passport requirements. The prototype requests a clear upload of the damaged passport as supporting evidence, but this upload does not replace any original document DFA may require in person. Verify the latest checklist with DFA before your appointment.',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-002',type:'faq',title:'What identification documents can I submit?',category:'Documents / Requirements',tags:['documents','identification','id','requirements'],body:'Use the identification documents requested by the current application flow. Make sure the submitted document is valid, readable, and that the personal information matches the information entered in MyBAI.',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-VALID-001',type:'faq',title:'Valid IDs accepted for passport applications',category:'Documents / Requirements',tags:['valid id','government id','identification','accepted ids','requirements','passport'],body:'DFA-published information lists examples of identification documents that may be accepted, including SSS, GSIS, LTO, PRC, PhilSys, OWWA, COMELEC, PNP, LGU/OSCA or barangay-issued IDs, CAAP, PhilPost, PSA, MARINA, and DFA IDs. The ID must meet current DFA validity and condition requirements, and the accepted list may change. Verify the latest official DFA list before your appointment. Official reference: DFA Passport Information Board (https://consular.dfa.gov.ph/images/PDF/Information_Boards/IB-PASSPORT-23-01-2023.pdf).',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-RENEW-001',type:'faq',title:'Adult passport renewal requirements',category:'Documents / Requirements',tags:['adult','passport renewal','requirements','current passport','appointment','documents'],body:'DFA guidance lists a confirmed online appointment, accomplished application form, personal appearance, and the current ePassport with a photocopy of its data page as core adult renewal requirements. Additional documents may be required depending on the applicant’s circumstances. Bring the original documents and photocopies required by the latest DFA checklist. This prototype’s upload fields do not replace the documents DFA requires in person. Official reference: DFA Consular Affairs (https://consular.dfa.gov.ph/).',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-NEW-001',type:'faq',title:'New passport application requirements',category:'Documents / Requirements',tags:['new passport','first time','requirements','documents','birth certificate','id'],body:'Requirements for a new passport depend on the applicant’s age and circumstances. Applicants should check the latest DFA checklist for the applicable application form, personal appearance, PSA documents, and acceptable identification documents. Bring required original documents and photocopies to the appointment. This prototype’s application flow is for demonstration and does not replace the official DFA checklist. Official reference: DFA Consular Affairs (https://consular.dfa.gov.ph/).',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-STATUS-001',type:'faq',title:'Documents for a change in civil or citizenship status',category:'Documents / Requirements',tags:['citizen status changed','civil status','marriage','status change','certificate','requirements'],body:'When civil or citizenship status has changed, DFA may require the original official certificate or supporting civil-registry, court, or government document that proves the change. Depending on the circumstances, this may include a PSA marriage certificate, annotated birth or marriage certificate, court order, or citizenship/naturalization document. The exact supporting records depend on the type of change. Confirm the current requirements with DFA before your appointment. This prototype’s upload field is not a substitute for original documents DFA may require.',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-LOST-001',type:'faq',title:'Requirements for a lost passport',category:'Documents / Requirements',tags:['lost passport','affidavit of loss','police report','requirements'],body:'DFA requirements for a lost passport include an Affidavit of Loss. If the lost passport was still valid, a police report and a clearing period may also apply. Further requirements depend on the passport and applicant circumstances. Check the latest official DFA requirements before your appointment. The prototype upload is for demonstration and does not replace original documents DFA may require.',createdAt:nowIso(),updatedAt:nowIso()},
+    {id:'KB-DOC-DAMAGED-001',type:'faq',title:'Requirements for a damaged passport',category:'Documents / Requirements',tags:['damaged passport','requirements','supporting documents'],body:'For a damaged passport, bring the damaged passport and check DFA’s current damaged-passport requirements. The prototype requests a clear upload of the damaged passport as supporting evidence, but this upload does not replace any original document DFA may require in person. Verify the latest checklist with DFA before your appointment.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-ACCOUNT-002',type:'faq',title:'How do I change my MyBAI email address?',category:'Account / OTP',tags:['email','change email','account','otp','login'],body:'Open Settings and choose Change Email. Enter the new email address, complete the verification step, and the updated email becomes the login identifier for the existing MyBAI account.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-ENQ-001',type:'article',title:'How do I submit an enquiry to support?',category:'Other',tags:['enquiry','support','help','contact','message'],body:'Open Help Center or Contact Support, choose the appropriate enquiry category, describe your concern clearly, and submit the enquiry. Your enquiry receives a unique Enquiry ID that can be used to follow the conversation and status.',createdAt:nowIso(),updatedAt:nowIso()}
   ];
-  if(Array.isArray(existing) && existing.length){
-    const ids=new Set(existing.map(a=>a.id));
-    const merged=[...existing,...additions.filter(a=>!ids.has(a.id))];
-    if(merged.length!==existing.length) jsonSet(HELP_KB_KEY,merged);
+
+  if (Array.isArray(existing) && existing.length) {
+    const ids = new Set(existing.map(a => a.id));
+    const missing = additions.filter(a => !ids.has(a.id));
+    // Place KB-FAQ-REQ-001 at the front if newly added so it surfaces prominently in Help Center
+    const leadFaq = missing.filter(a => a.id === 'KB-FAQ-REQ-001');
+    const restMissing = missing.filter(a => a.id !== 'KB-FAQ-REQ-001');
+    const merged = [...leadFaq, ...existing, ...restMissing];
+    if (merged.length !== existing.length) jsonSet(HELP_KB_KEY, merged);
     return merged;
   }
-  const seeded=[
+
+  const seeded = [
+    faqRequirementsEntry,
     {id:'KB-STATUS-001',type:'article',title:'How do I check my passport application status?',category:'Application Status',tags:['status','application','tracking','check'],body:'Sign in to your MyBAI account and open Check Status. Select your passport application to view the current status, BAI Application ID, DFA Appointment Reference Number (ARN), payment reference, eReceipt number, and the processing timeline.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-NEW-001',type:'faq',title:'What is needed for a new passport application?',category:'New Passport',tags:['new passport','requirements','documents','id','photo'],body:'Start a New Passport Application from your Dashboard and choose your applicant type. Adult applicants upload a PSA Birth Certificate and a valid government ID. Minor applicants upload a PSA Birth Certificate, a signed Parent / Guardian Consent and a valid ID of the parent or guardian. Files must be PDF, JPG or PNG, up to 10 MB each.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-NEW-002',type:'article',title:'How to apply for a new passport',category:'New Passport',tags:['new passport','apply','application','steps','fee'],body:'The New Passport Application has five steps: (1) Applicant & Documents, (2) Personal & Family Details including your DFA Consular Office / Site, (3) Contact & Emergency, (4) the Applicant’s Oath with your electronic signature, and (5) Fee & Review, where you choose Regular or Express processing and optional courier delivery before submitting. Your entries are kept while you move between steps. You can only have one active passport application at a time.',createdAt:nowIso(),updatedAt:nowIso()},
@@ -977,19 +1612,31 @@ function seedKnowledgeBase(){
     {id:'KB-PAY-001',type:'faq',title:'What is the payment reference?',category:'Payment',tags:['payment','payment reference','reference'],body:'The Payment Reference is associated with the passport application transaction. When an existing DFA application is linked to MyBAI, the payment reference is stored with that application record.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-APPT-001',type:'faq',title:'Where do I select my passport appointment location?',category:'Appointment / DFA Consular Office',tags:['appointment','location','dfa','consular office','site'],body:'New passport, renewal, and lost-passport replacement flows use a DFA Consular Office / Site selection. Choose the site where you want the passport service or appointment to take place.',createdAt:nowIso(),updatedAt:nowIso()},
     {id:'KB-OTP-001',type:'faq',title:'How does MyBAI OTP login work?',category:'Account / OTP',tags:['otp','login','email','verification','7 digit'],body:'MyBAI uses your registered email address for login. After you request a code, enter the 7-digit numeric One-Time Password (OTP) sent to that email address. Never share your verification code with anyone else.',createdAt:nowIso(),updatedAt:nowIso()},
-    {id:'KB-ADVISORY-001',type:'advisory',title:'Service Advisory: Passport support availability',category:'Service Advisory',tags:['advisory','service','support'],body:'Support availability may vary during scheduled maintenance or service interruptions. Check the Service Advisories section for the latest notices posted by support personnel.',createdAt:nowIso(),updatedAt:nowIso()}
+    {id:'KB-ADVISORY-001',type:'advisory',title:'Service Advisory: Passport support availability',category:'Service Advisory',tags:['advisory','service','support'],body:'Support availability may vary during scheduled maintenance or service interruptions. Check the Service Advisories section for the latest notices posted by support personnel.',createdAt:nowIso(),updatedAt:nowIso()},
+    ...additions.filter(a => a.id !== 'KB-FAQ-REQ-001')
   ];
-  jsonSet(HELP_KB_KEY,seeded);
+  jsonSet(HELP_KB_KEY, seeded);
   return seeded;
 }
-function getKnowledgeBase(){ return seedKnowledgeBase(); }
-function saveKnowledgeBase(items){ jsonSet(HELP_KB_KEY,items); }
+function getKnowledgeBase() {
+  return seedKnowledgeBase();
+}
 
-function saveHelpEnquiries(items){ jsonSet(HELP_ENQUIRIES_KEY,items); }
-function getHelpConversations(){ return jsonGet(HELP_CONVERSATIONS_KEY,[]); }
-function saveHelpConversations(items){ jsonSet(HELP_CONVERSATIONS_KEY,items); }
-function getHelpNotifications(){ return jsonGet(HELP_NOTIFICATION_KEY,[]); }
-function saveHelpNotifications(items){ jsonSet(HELP_NOTIFICATION_KEY,items); }
+function saveHelpEnquiries(items) {
+  jsonSet(HELP_ENQUIRIES_KEY, items);
+}
+function getHelpConversations() {
+  return jsonGet(HELP_CONVERSATIONS_KEY, []);
+}
+function saveHelpConversations(items) {
+  jsonSet(HELP_CONVERSATIONS_KEY, items);
+}
+function getHelpNotifications() {
+  return jsonGet(HELP_NOTIFICATION_KEY, []);
+}
+function saveHelpNotifications(items) {
+  jsonSet(HELP_NOTIFICATION_KEY, items);
+}
 
 
 
@@ -1027,44 +1674,78 @@ function createEnquiryId(){
   }while(true);
 }
 function articleTypeLabel(type){ return type==='advisory'?'Service Advisory':type==='faq'?'FAQ':'Knowledge Article'; }
-function searchKnowledgeBase(query,category=''){
-  const q=String(query||'').toLowerCase().trim();
-  const qTokens=q.split(/[^a-z0-9]+/).filter(t=>t.length>1);
-  if(!qTokens.length && !category) return [];
-  return getKnowledgeBase().map(article=>{
-    const hay=[article.title,article.body,article.category,(article.tags||[]).join(' ')].join(' ').toLowerCase();
-    let score=0;
-    if(category && article.category===category) score+=0.45;
-    qTokens.forEach(t=>{ if(hay.includes(t)) score+=0.12; if(article.title.toLowerCase().includes(t)) score+=0.08; if((article.tags||[]).some(tag=>tag.toLowerCase().includes(t))) score+=0.1; });
-    return {...article,score};
-  }).filter(a=>a.score>0).sort((a,b)=>b.score-a.score);
-}
-function bestKnowledgeMatch(query){ return searchKnowledgeBase(query)[0] || null; }
-function formatAiAnswer(article){
-  return `According to the Knowledge Base article “${article.title}”: ${article.body}`;
-}
-function transcriptText(messages=[]){
-  return messages.map(m=>`${m.sender==='member'?'Member':'AI'}: ${m.text}`).join('\n');
-}
-function ensureAiConversation(){
-  const existingId=sessionStorage.getItem('baiHelpCurrentConversationId');
-  const all=getHelpConversations();
-  if(existingId){ const existing=all.find(c=>c.id===existingId && c.memberEmail===accountEmail()); if(existing) return existing; }
-  const conv={id:uid('CHAT'),memberId:memberId(),memberEmail:accountEmail(),createdAt:nowIso(),updatedAt:nowIso(),status:'Active',messages:[]};
-  all.push(conv); saveHelpConversations(all); sessionStorage.setItem('baiHelpCurrentConversationId',conv.id); return conv;
-}
-function currentAiConversation(){
-  const id=sessionStorage.getItem('baiHelpCurrentConversationId');
-  return id?getHelpConversations().find(c=>c.id===id && c.memberEmail===accountEmail())||null:null;
-}
-function updateAiConversation(id,mutator){
-  const all=getHelpConversations(); const idx=all.findIndex(c=>c.id===id); if(idx<0)return null; const updated=mutator({...all[idx]}); updated.updatedAt=nowIso(); all[idx]=updated; saveHelpConversations(all); return updated;
-}
-function relatedAppText(appId){
-  const a=findApplicationById(appId); return a?`${a.type} — ${a.id}`:'No specific application';
+/**
+ * Deterministic keyword-scoring search over published Knowledge Base entries.
+ * Used by both the Help Center search bar and the AI Assistant (threshold >= 0.45).
+ */
+function searchKnowledgeBase(query, category = '') {
+  const q = String(query || '').toLowerCase().trim();
+  const qTokens = q.split(/[^a-z0-9]+/).filter(t => t.length > 1);
+  if (!qTokens.length && !category) return [];
+  return getKnowledgeBase()
+    .map(article => {
+      const hay = [article.title, article.body, article.category, (article.tags || []).join(' ')].join(' ').toLowerCase();
+      let score = 0;
+      if (category && article.category === category) score += 0.45;
+      qTokens.forEach(t => {
+        if (hay.includes(t)) score += 0.12;
+        if (article.title.toLowerCase().includes(t)) score += 0.08;
+        if ((article.tags || []).some(tag => tag.toLowerCase().includes(t))) score += 0.1;
+      });
+      return { ...article, score };
+    })
+    .filter(a => a.score > 0)
+    .sort((a, b) => b.score - a.score);
 }
 
-function memberShell(inner,active='help'){
+function bestKnowledgeMatch(query) {
+  return searchKnowledgeBase(query)[0] || null;
+}
+
+function formatAiAnswer(article) {
+  return `According to the Knowledge Base article “${article.title}”: ${article.body}`;
+}
+
+function ensureAiConversation() {
+  const existingId = sessionStorage.getItem('baiHelpCurrentConversationId');
+  const all = getHelpConversations();
+  if (existingId) {
+    const existing = all.find(c => c.id === existingId && c.memberEmail === accountEmail());
+    if (existing) return existing;
+  }
+  const conv = {
+    id: uid('CHAT'),
+    memberId: memberId(),
+    memberEmail: accountEmail(),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    status: 'Active',
+    messages: []
+  };
+  all.push(conv);
+  saveHelpConversations(all);
+  sessionStorage.setItem('baiHelpCurrentConversationId', conv.id);
+  return conv;
+}
+
+function currentAiConversation() {
+  const id = sessionStorage.getItem('baiHelpCurrentConversationId');
+  return id ? getHelpConversations().find(c => c.id === id && c.memberEmail === accountEmail()) || null : null;
+}
+
+function updateAiConversation(id, mutator) {
+  const all = getHelpConversations();
+  const idx = all.findIndex(c => c.id === id);
+  if (idx < 0) return null;
+  const updated = mutator({ ...all[idx] });
+  updated.updatedAt = nowIso();
+  all[idx] = updated;
+  saveHelpConversations(all);
+  return updated;
+}
+
+/** Shared sidebar + topbar + footer wrapper for member Help Center & secondary pages. */
+function memberShell(inner, active = 'help') {
   const unread=countUnreadMemberNotifications();
   const navStatus=active==='status'?'active':'';
   const navProfile=active==='profile'?'active':'';
@@ -1074,15 +1755,16 @@ function memberShell(inner,active='help'){
  <main class="content">${inner}</main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
 
-function helpCenter(){
-  const articles=getKnowledgeBase();
-  const rec=articles.filter(a=>a.type!=='advisory').slice(0,5);
-  const advisories=articles.filter(a=>a.type==='advisory');
+function helpCenter() {
+  const articles = getKnowledgeBase();
+  const faqs = articles.filter(a => a.type === 'faq');
+  const rec = (faqs.length ? faqs : articles.filter(a => a.type !== 'advisory')).slice(0, 5);
+  const advisories = articles.filter(a => a.type === 'advisory');
   return memberShell(`<div class="page-panel help-center-panel"><div class="help-center-head"><div><span class="eyebrow">BAI SUPPORT</span><h2>Help Center</h2><p>Search for passport information, browse common questions, or get help from the AI Assistant and support personnel.</p></div><div class="help-center-actions"><button class="primary" onclick="go('ai-chat')">Ask an AI Assistant</button><button class="secondary-action" onclick="go('enquiry-form')">Submit an Enquiry</button><button class="secondary-action" onclick="go('enquiries')">My Enquiries</button></div></div>
- <div class="help-search"><div class="field"><label for="helpSearch">Search the Knowledge Base</label><div class="search-line"><input id="helpSearch" placeholder="e.g. renewal requirements, application status" onkeydown="if(event.key==='Enter'){searchHelpCenter()}"/><button class="primary" onclick="searchHelpCenter()">Search</button></div></div></div>
+ <div class="help-search"><div class="field"><label for="helpSearch">Search the Knowledge Base</label><div class="search-line"><input id="helpSearch" placeholder="e.g. valid IDs, renewal requirements, application status" onkeydown="if(event.key==='Enter'){searchHelpCenter()}"/><button class="primary" onclick="searchHelpCenter()">Search</button></div></div></div>
  <div id="helpSearchResults" class="help-search-results"></div>
  <div class="help-grid"><section class="help-section"><div class="help-section-head"><h3>Browse Categories</h3></div><div class="category-grid">${['Application Status','New Passport','Passport Renewal','Lost Passport Replacement','Documents / Requirements','Payment','Appointment / DFA Consular Office','Account / OTP'].map(c=>`<button class="category-card" onclick="browseHelpCategory('${esc(c)}')"><span>${esc(c)}</span><small>View related information</small></button>`).join('')}</div></section>
- <section class="help-section"><div class="help-section-head"><h3>Recommended Articles</h3><button class="link-btn" onclick="browseAllArticles()">View all</button></div><div class="article-list">${rec.map(article=>articleListItem(article)).join('')}</div></section></div>
+ <section class="help-section"><div class="help-section-head"><h3>Frequently Asked Questions (FAQs)</h3><button class="link-btn" onclick="browseAllArticles()">View all</button></div><div class="article-list">${rec.map(article=>articleListItem(article)).join('')}</div></section></div>
  <section class="help-section"><div class="help-section-head"><h3>Service Advisories</h3></div><div class="advisory-list">${advisories.map(a=>`<button class="advisory-card" onclick="openArticle('${esc(a.id)}')"><strong>${esc(a.title)}</strong><span>${esc(truncateText(a.body,180))}</span><small>${formatDateTime(a.updatedAt)}</small></button>`).join('')}</div></section>
  <div class="help-center-bottom"><div><b>Need more support?</b><span>Submit a formal enquiry and a support personnel can respond.</span></div><button class="primary" onclick="go('enquiry-form')">Submit an Enquiry</button></div><div class="help-contact-strip"><div><b>Call Us</b><span>0987 654 3210</span></div><div><b>Visit Us</b><span>BAI Support Center, Bazinga City, Palawan</span></div></div></div>`,'help');
 }
@@ -1103,9 +1785,7 @@ function browseHelpCategory(category){
   host.innerHTML=`<div class="search-result-head"><b>${esc(category)}</b><span>${results.length} article${results.length===1?'':'s'}</span></div>${results.length?`<div class="article-list">${results.map(articleListItem).join('')}</div>`:`<div class="empty-inline">No articles are currently published in this category.</div>`}`;
   host.scrollIntoView({behavior:'smooth',block:'start'});
 }
-function browseAllArticles(){
-  const articles=getKnowledgeBase().filter(a=>a.type!=='advisory');
-  const body=`<div class="page-panel help-articles-panel"><div class="subpage-top"><button class="link-btn back-btn" onclick="go('help-center')">← Back to Help Center</button><h2>Knowledge Base</h2><p>Searchable information used by the Help Center and AI Assistant.</p></div><div class="article-list large-list">${articles.map(articleListItem).join('')}</div></div>`;
+function browseAllArticles() {
   return go('knowledge-base');
 }
 function knowledgeBase(){
@@ -1130,24 +1810,46 @@ function newAiChat(){
   sessionStorage.removeItem('baiHelpCurrentConversationId'); go('ai-chat');
 }
 function useAiPrompt(text){ const input=document.getElementById('aiMessageInput'); if(input){ input.value=text; input.focus(); } }
-function sendAiMessage(event){
+function sendAiMessage(event) {
   event.preventDefault();
-  const input=document.getElementById('aiMessageInput'); const text=(input?.value||'').trim(); if(!text)return;
-  let conv=currentAiConversation()||ensureAiConversation();
-  const memberMsg={sender:'member',text,createdAt:nowIso()};
-  updateAiConversation(conv.id,c=>({...c,messages:[...(c.messages||[]),memberMsg],status:'AI-Assisted'}));
-  const article=bestKnowledgeMatch(text);
-  const all=getHelpConversations();
-  const current=all.find(c=>c.id===conv.id);
+  const input = document.getElementById('aiMessageInput');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+
+  let conv = currentAiConversation() || ensureAiConversation();
+  const memberMsg = { sender: 'member', text, createdAt: nowIso() };
+  updateAiConversation(conv.id, c => ({ ...c, messages: [...(c.messages || []), memberMsg], status: 'AI-Assisted' }));
+
+  const article = bestKnowledgeMatch(text);
   let aiMsg;
-  if(article && article.score>=0.45){
-    aiMsg={sender:'ai',text:formatAiAnswer(article),createdAt:nowIso(),sourceArticleId:article.id,askFeedback:true,conversationId:conv.id};
-  }else{
-    aiMsg={sender:'ai',text:'I could not find a Knowledge Base article that matches your question closely enough to give a reliable answer. I can help you send this to a support personnel instead.',createdAt:nowIso(),askFeedback:false,escalationSuggested:true,conversationId:conv.id};
+  if (article && article.score >= 0.45) {
+    aiMsg = {
+      sender: 'ai',
+      text: formatAiAnswer(article),
+      createdAt: nowIso(),
+      sourceArticleId: article.id,
+      askFeedback: true,
+      conversationId: conv.id
+    };
+  } else {
+    aiMsg = {
+      sender: 'ai',
+      text: 'I could not find a Knowledge Base article that matches your question closely enough to give a reliable answer. I can help you send this to a support personnel instead.',
+      createdAt: nowIso(),
+      askFeedback: false,
+      escalationSuggested: true,
+      conversationId: conv.id
+    };
   }
-  updateAiConversation(conv.id,c=>({...c,messages:[...(c.messages||[]),aiMsg],status:'AI-Assisted'}));
+
+  updateAiConversation(conv.id, c => ({
+    ...c,
+    lastMatchedArticleId: article && article.score >= 0.45 ? article.id : (c.lastMatchedArticleId || null),
+    messages: [...(c.messages || []), aiMsg],
+    status: 'AI-Assisted'
+  }));
   render();
-  setTimeout(()=>document.getElementById('aiChatWindow')?.scrollTo({top:document.getElementById('aiChatWindow').scrollHeight,behavior:'smooth'}),20);
+  setTimeout(() => document.getElementById('aiChatWindow')?.scrollTo({ top: document.getElementById('aiChatWindow').scrollHeight, behavior: 'smooth' }), 20);
 }
 function markAiHelpful(helpful){
   const conv=currentAiConversation(); if(!conv)return;
@@ -1473,31 +2175,34 @@ function markMemberNotificationRead(id){
   if(memberNotificationDropdownOpen) renderMemberNotificationDropdown();
 }
 
-function markAllMemberNotificationsRead(){
-  const id=memberId();
-  const email=(currentAccount()?.email || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
-  const all=getHelpNotifications();
-  let changed=false;
-  all.forEach(n=>{
-    const mine=(n.memberId && id && n.memberId===id) || (!n.memberId && n.email && n.email===email);
-    if(mine && !n.read){ n.read=true; changed=true; }
+function markAllMemberNotificationsRead() {
+  const id = memberId();
+  const email = (currentAccount()?.email || accountEmail() || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
+  const all = getHelpNotifications();
+  let changed = false;
+  all.forEach(n => {
+    const mine = (n.memberId && id && n.memberId === id) || (!n.memberId && n.email && n.email === email);
+    if (mine && !n.read) {
+      n.read = true;
+      changed = true;
+    }
   });
-  if(changed) saveHelpNotifications(all);
+  if (changed) saveHelpNotifications(all);
   refreshNotificationBadges();
-  if(memberNotificationDropdownOpen) renderMemberNotificationDropdown();
+  if (memberNotificationDropdownOpen) renderMemberNotificationDropdown();
 }
 
-function clearAllMemberNotifications(){
-  const id=memberId();
-  const email=(currentAccount()?.email || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
-  const all=getHelpNotifications();
-  const kept=all.filter(n=>{
-    const mine=(n.memberId && id && n.memberId===id) || (!n.memberId && n.email && n.email===email);
+function clearAllMemberNotifications() {
+  const id = memberId();
+  const email = (currentAccount()?.email || accountEmail() || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
+  const all = getHelpNotifications();
+  const kept = all.filter(n => {
+    const mine = (n.memberId && id && n.memberId === id) || (!n.memberId && n.email && n.email === email);
     return !mine;
   });
-  if(kept.length!==all.length) saveHelpNotifications(kept);
+  if (kept.length !== all.length) saveHelpNotifications(kept);
   refreshNotificationBadges();
-  if(memberNotificationDropdownOpen) renderMemberNotificationDropdown();
+  if (memberNotificationDropdownOpen) renderMemberNotificationDropdown();
 }
 
 function handleMemberNotificationClick(notificationId,enquiryId){
@@ -1618,11 +2323,79 @@ function wireCreateAccountValidation(){
   restoreRegistrationDraft(type); wireUploadInputs(form);
 }
 
-function startEnquiryFromArticle(id){ sessionStorage.setItem('baiHelpSourceArticleId',id); sessionStorage.removeItem('baiHelpPendingConversationId'); go('enquiry-form'); }
-function knowledgeArticle(){
-  const id=parseRouteHash().params.get('id'); const article=getKnowledgeBase().find(a=>a.id===id);
-  if(!article) return memberShell(`<div class="page-panel"><h2>Article Not Found</h2><p>The requested Knowledge Base article could not be found.</p><button class="primary" onclick="go('help-center')">Back to Help Center</button></div>`,'help');
-  return memberShell(`<div class="page-panel article-view-panel"><div class="subpage-top"><button class="link-btn back-btn" onclick="go('help-center')">← Back to Help Center</button><span class="article-type article-view-type">${esc(articleTypeLabel(article.type))}</span><h2>${esc(article.title)}</h2><div class="article-meta">${esc(article.category)} · Updated ${formatDateTime(article.updatedAt)}</div></div><div class="article-body">${esc(article.body)}</div><div class="article-actions"><button class="primary" onclick="go('ai-chat')">Ask AI about this</button><button class="secondary-action" onclick="startEnquiryFromArticle('${esc(article.id)}')">Still need help?</button></div></div>`,'help');
+function startEnquiryFromArticle(id) {
+  sessionStorage.setItem('baiHelpSourceArticleId', id);
+  sessionStorage.removeItem('baiHelpPendingConversationId');
+  go('enquiry-form');
+}
+
+/** Converts plain-text Knowledge Base / FAQ bodies (headings & bullet lines) into safe HTML. */
+function formatArticleBodyHtml(body) {
+  const lines = String(body || '').split(/\r?\n/);
+  const blocks = [];
+  let listItems = [];
+
+  const flushList = () => {
+    if (listItems.length) {
+      blocks.push(`<ul class="article-bullet-list">${listItems.join('')}</ul>`);
+      listItems = [];
+    }
+  };
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+    if (/^[•\-]\s+/.test(trimmed)) {
+      listItems.push(`<li>${esc(trimmed.replace(/^[•\-]\s+/, ''))}</li>`);
+    } else if (trimmed.endsWith(':') && trimmed.length <= 95) {
+      flushList();
+      blocks.push(`<h4 class="article-section-heading">${esc(trimmed)}</h4>`);
+    } else {
+      flushList();
+      blocks.push(`<p>${esc(trimmed)}</p>`);
+    }
+  }
+  flushList();
+  return blocks.join('');
+}
+
+function knowledgeArticle() {
+  const params = parseRouteHash().params;
+  const id = params.get('id');
+  const from = params.get('from') || '';
+  const article = getKnowledgeBase().find(a => a.id === id);
+  if (!article) {
+    return memberShell(`<div class="page-panel"><h2>Article Not Found</h2><p>The requested Knowledge Base article could not be found.</p><button class="primary" onclick="go('help-center')">Back to Help Center</button></div>`, 'help');
+  }
+
+  const backTarget = from === 'renewal-form' || from === 'new-application' ? from : 'help-center';
+  const backLabel =
+    from === 'renewal-form'
+      ? '← Back to Passport Renewal'
+      : from === 'new-application'
+        ? '← Back to New Passport Application'
+        : '← Back to Help Center';
+
+  return memberShell(
+    `<div class="page-panel article-view-panel">
+       <div class="subpage-top">
+         <button class="link-btn back-btn" onclick="go('${backTarget}')">${backLabel}</button>
+         <span class="article-type article-view-type">${esc(articleTypeLabel(article.type))}</span>
+         <h2>${esc(article.title)}</h2>
+         <div class="article-meta">${esc(article.category)} · Updated ${formatDateTime(article.updatedAt)}</div>
+       </div>
+       <div class="article-body">${formatArticleBodyHtml(article.body)}</div>
+       <div class="article-actions">
+         <button class="primary" onclick="go('ai-chat')">Ask AI about this</button>
+         <button class="secondary-action" onclick="startEnquiryFromArticle('${esc(article.id)}')">Still need help?</button>
+         ${backTarget !== 'help-center' ? `<button class="secondary-action" onclick="go('help-center')">Browse Help Center</button>` : ''}
+       </div>
+     </div>`,
+    'help'
+  );
 }
 function enquiryForm(){
   selectedEnquiryFiles=[];
@@ -1635,20 +2408,50 @@ function confirmApplicationReceived(id){ const app=findApplicationById(id); if(!
 function cancelApplication(id){ const app=findApplicationById(id); if(!app || ['COMPLETED','CANCELLED'].includes(String(app.status||'').toUpperCase())) return; if(confirm('Cancel this passport application?')){ updateApplicationStatus(id,'CANCELLED',`Your ${app.type} application ${app.id} has been cancelled.`); go('status'); } }
 
 
-/* v57 consistency fixes */
-function restoreRegistrationDraft() {
-  const key = registrationDraftKey();
-  const draft = JSON.parse(localStorage.getItem(key) || 'null');
+/* ==========================================================================
+   11. Draft Restoration, Notification Storage & Formal Enquiry Submission
+   ========================================================================== */
+
+/** Restores an in-progress Adult or Minor registration draft from sessionStorage. */
+function restoreRegistrationDraft(type) {
+  const resolvedType = type || (document.querySelector('.registration-card')?.classList.contains('minor-card') ? 'minor' : 'adult');
+  let draft = null;
+  try {
+    draft = JSON.parse(sessionStorage.getItem(registrationDraftKey(resolvedType)) || 'null');
+  } catch {
+    return;
+  }
   if (!draft) return;
-  const ids = ['firstName','lastName','gender','dob','civilStatus','email','minorEmail','guardianEmail','terms','privacy'];
+
+  const ids = resolvedType === 'adult'
+    ? ['adultFirstName', 'adultLastName', 'adultGender', 'adultDob', 'adultCivil', 'adultEmail']
+    : ['minorFirstName', 'minorLastName', 'minorGender', 'minorDob', 'minorEmail', 'guardianEmail'];
+
   ids.forEach(id => {
     const el = document.getElementById(id);
-    if (!el || draft[id] === undefined) return;
-    if (el.type === 'checkbox') el.checked = !!draft[id];
-    else el.value = draft[id] || '';
+    if (el && draft[id] !== undefined) el.value = draft[id] || '';
   });
-  document.querySelectorAll('input[type=file]').forEach(input => { input.value = ''; });
-  wireCreateAccountValidation();
+
+  // Sync split Month / Day / Year selects from hidden YYYY-MM-DD value
+  const dobPrefix = resolvedType === 'adult' ? 'adultDob' : 'minorDob';
+  const dobVal = String(draft[dobPrefix] || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dobVal)) {
+    const [y, m, d] = dobVal.split('-');
+    const yEl = document.getElementById(dobPrefix + 'Year');
+    const mEl = document.getElementById(dobPrefix + 'Month');
+    const dEl = document.getElementById(dobPrefix + 'Day');
+    if (yEl) yEl.value = y;
+    if (mEl) mEl.value = m;
+    if (dEl) dEl.value = d;
+  }
+
+  // Restore agreement checkboxes
+  if (Array.isArray(draft.agreements)) {
+    const boxes = document.querySelectorAll('.registration-card .agreement input[type="checkbox"]');
+    boxes.forEach((cb, i) => {
+      if (draft.agreements[i] !== undefined) cb.checked = !!draft.agreements[i];
+    });
+  }
 }
 
 function addHelpNotification(email, message, enquiryId, memberIdValue) {
@@ -1668,19 +2471,22 @@ function addHelpNotification(email, message, enquiryId, memberIdValue) {
 
 function memberNotifications() {
   const id = memberId();
-  const email = (currentAccount()?.email || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
+  const email = (currentAccount()?.email || accountEmail() || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
   const all = jsonGet(HELP_NOTIFICATION_KEY, []);
   return all.filter(n => (n.memberId && id ? n.memberId === id : false) || (!n.memberId && n.email && n.email === email));
 }
 
 function markMemberNotificationsRead() {
   const id = memberId();
-  const email = (currentAccount()?.email || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
+  const email = (currentAccount()?.email || accountEmail() || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
   const all = jsonGet(HELP_NOTIFICATION_KEY, []);
   let changed = false;
   all.forEach(n => {
     const mine = (n.memberId && id && n.memberId === id) || (!n.memberId && n.email && n.email === email);
-    if (mine && !n.read) { n.read = true; changed = true; }
+    if (mine && !n.read) {
+      n.read = true;
+      changed = true;
+    }
   });
   if (changed) jsonSet(HELP_NOTIFICATION_KEY, all);
 }
@@ -1702,28 +2508,47 @@ function getHelpEnquiries() {
   return jsonGet(HELP_ENQUIRIES_KEY, []);
 }
 
-
+/**
+ * Validates and persists a formal support enquiry to `baiHelpEnquiries` (and binary
+ * attachments to IndexedDB), carrying over any linked application, referenced KB article,
+ * or escalated AI chat transcript.
+ */
 async function submitEnquiry(event) {
   if (event && event.preventDefault) event.preventDefault();
-  const email = (currentAccount()?.email || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
+  const email = (currentAccount()?.email || accountEmail() || sessionStorage.getItem('baiEmail') || '').trim().toLowerCase();
   const id = memberId();
-  if (!email || !id) { alert('Please sign in to submit an enquiry.'); return; }
+  if (!email || !id) {
+    alert('Please sign in to submit an enquiry.');
+    return;
+  }
+
   const type = document.getElementById('enquiryCategory')?.value || document.getElementById('enquiryType')?.value || '';
   const message = (document.getElementById('enquiryMessage')?.value || document.getElementById('enquiryBody')?.value || '').trim();
-  const relatedId = document.getElementById('relatedApplication')?.value || '';
-  const attachments = Array.isArray(selectedEnquiryFiles) ? selectedEnquiryFiles : Array.from(document.getElementById('enquiryAttachment')?.files || []);
+  const relatedId = document.getElementById('enquiryApplication')?.value || document.getElementById('relatedApplication')?.value || '';
+  const attachments = Array.isArray(selectedEnquiryFiles) && selectedEnquiryFiles.length
+    ? selectedEnquiryFiles
+    : Array.from(document.getElementById('enquiryAttachment')?.files || []);
+
   let storedAttachments = [];
   if (attachments.length) {
-    try { storedAttachments = (await Promise.all(attachments.map(saveEnquiryAttachment))).filter(Boolean); }
-    catch (err) { alert('One or more attachments could not be saved. Please try the upload again.'); return; }
+    try {
+      storedAttachments = (await Promise.all(attachments.map(saveEnquiryAttachment))).filter(Boolean);
+    } catch {
+      alert('One or more attachments could not be saved. Please try the upload again.');
+      return;
+    }
   }
+
   const storedAttachment = storedAttachments[0] || null;
-  const articleId = localStorage.getItem('baiHelpSourceArticleId') || null;
+  const articleId = sessionStorage.getItem('baiHelpSourceArticleId') || localStorage.getItem('baiHelpSourceArticleId') || null;
   const article = articleId ? getKnowledgeBase().find(a => a.id === articleId) : null;
-  const convId = localStorage.getItem('baiHelpEscalationConversationId') || null;
+  const convId = sessionStorage.getItem('baiHelpPendingConversationId') || localStorage.getItem('baiHelpEscalationConversationId') || null;
   const conversations = jsonGet(HELP_CONVERSATIONS_KEY, []);
   const conv = convId ? conversations.find(c => c.id === convId && c.memberId === id) : null;
+  const transcriptCopy = conv ? JSON.parse(JSON.stringify(conv.messages || [])) : [];
   const relatedApp = relatedId ? getApplications().find(a => a.id === relatedId) : null;
+  const now = new Date().toISOString();
+
   const record = {
     id: createEnquiryId(),
     memberId: id,
@@ -1736,27 +2561,43 @@ async function submitEnquiry(event) {
     description: message,
     attachment: storedAttachment,
     attachments: storedAttachments,
-    chatHistory: conv ? JSON.parse(JSON.stringify(conv.messages || [])) : [],
+    chatTranscript: transcriptCopy,
+    chatHistory: transcriptCopy,
     sourceArticleId: article?.id || null,
     sourceArticleTitle: article?.title || null,
     matchedKnowledgeArticleId: conv?.lastMatchedArticleId || null,
     escalationFlag: !!conv,
-    escalationTimestamp: conv ? new Date().toISOString() : null,
+    escalationTimestamp: conv ? now : null,
     status: conv ? 'Escalated' : 'Pending',
     personnelId: null,
     personnelName: null,
     personnelReply: '',
-    auditTrail: [{ action: 'Created', actorType: 'Member', actorId: id, at: new Date().toISOString() }],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    messages: [{ senderType: 'Member', senderId: id, senderName: memberDisplayName(), text: message, attachment: storedAttachment, attachments: storedAttachments, createdAt: new Date().toISOString() }]
+    auditTrail: [{ action: 'Created', actorType: 'Member', actorId: id, at: now }],
+    createdAt: now,
+    updatedAt: now,
+    messages: [
+      {
+        senderType: 'Member',
+        senderId: id,
+        senderName: memberDisplayName(),
+        text: message,
+        attachment: storedAttachment,
+        attachments: storedAttachments,
+        createdAt: now
+      }
+    ]
   };
+
   const all = jsonGet(HELP_ENQUIRIES_KEY, []);
   all.push(record);
   jsonSet(HELP_ENQUIRIES_KEY, all);
+
+  sessionStorage.setItem('baiLastEnquiryId', record.id);
+  sessionStorage.removeItem('baiHelpSourceArticleId');
+  sessionStorage.removeItem('baiHelpPendingConversationId');
   localStorage.removeItem('baiHelpSourceArticleId');
   localStorage.removeItem('baiHelpEscalationConversationId');
-  selectedEnquiryFiles=[];
+  selectedEnquiryFiles = [];
   go('enquiry-submitted');
 }
 
@@ -1860,17 +2701,9 @@ function createAccount(type){
   go('verify');
 }
 
-/* Registration OTP verification: any exactly 7-digit code is accepted in this
-   prototype; verification state comes from the persistent pending record. */
-
-
-/* Login: keep pending account identity outside sessionStorage as well, so the
-   Continue button still works after a render/reopen. */
-
-
-
-/* Unified render registry retains Module 2 routes while using the stable OTP
-   handlers above. */
+/* ==========================================================================
+   13. Legal Pages, Master SPA Router & Auth Session Handlers
+   ========================================================================== */
 function legalPageShell(title, body){
  return `<div class="auth-screen terminal-auth legal-screen"><div class="auth-card legal-card"><button class="link-btn legal-back" onclick="go(sessionStorage.getItem('baiLoggedIn')==='true'?'dashboard':'login')">← Back</button><h1>${title}</h1><p class="legal-updated">Last updated: October 24, 2026</p>${body}<div class="legal-actions"><button class="primary" onclick="go(sessionStorage.getItem('baiLoggedIn')==='true'?'dashboard':'login')">Return to Website</button></div></div></div>`;
 }
@@ -1906,6 +2739,7 @@ function render(){
   if(page==='login-verify'&&sessionStorage.getItem('baiLoginOtpSent')==='true') startOtpCooldown('login');
   if(page==='change-email'&&sessionStorage.getItem('baiEmailChangeOtpSent')==='true') startEmailChangeCooldown();
   if(page==='enquiry-form') wireEnquiryLiveValidation();
+  if(page==='help-center' && parsed.params.get('category')) browseHelpCategory(parsed.params.get('category'));
   startEnquiryRealtime?.(page);
 }
 
@@ -2027,109 +2861,66 @@ function completeRegistrationVerification(){
   if(account.type) sessionStorage.removeItem(registrationDraftKey(account.type));
   go('created');
 }
-function startLogin(){
-  const email=document.getElementById('loginEmail');
+function startLogin() {
+  const email = document.getElementById('loginEmail');
   email?.closest('.field')?.querySelector('.field-error')?.remove();
-  if(!email || !email.value.trim()){ showFieldError(email,'Please enter your email address.'); return; }
-  if(!isValidEmailAddress(email.value)){ showFieldError(email,'Please enter a valid email address.'); return; }
-  const normalized=normalizeAccountEmail(email.value);
+  if (!email || !email.value.trim()) {
+    showFieldError(email, 'Please enter your email address.');
+    return;
+  }
+  if (!isValidEmailAddress(email.value)) {
+    showFieldError(email, 'Please enter a valid email address.');
+    return;
+  }
+  const normalized = normalizeAccountEmail(email.value);
   email.closest('.field')?.classList.remove('invalid');
-  sessionStorage.setItem('baiPendingLoginEmail',normalized);
-  sessionStorage.setItem('baiLoginOtpSent','false');
+  sessionStorage.setItem('baiPendingLoginEmail', normalized);
+  sessionStorage.setItem('baiLoginOtpSent', 'false');
   sessionStorage.removeItem('baiLoginOtp');
   sessionStorage.removeItem('baiLoginOtpSentAt');
   go('login-verify');
 }
-function startLoginOld(){
-//  const email=document.getElementById('loginEmail');
-//  email?.closest('.field')?.querySelector('.field-error')?.remove();
-//  if(!email || !email.value.trim()){ showFieldError(email,'Please enter your email address.'); return; }
-//  if(!isValidEmailAddress(email.value)){ showFieldError(email,'Please enter a valid email address.'); return; }
-//  const normalized=normalizeAccountEmail(email.value);
-//  let account=findAccountByEmail(normalized);
-//  /* Recover the currently known account from this browser if its registry was
-//     temporarily unavailable, without turning an unknown email into an account. */
-//  if(!account && normalizeAccountEmail(sessionStorage.getItem('baiAccountEmail')||'')===normalized && sessionStorage.getItem('baiAccountId')){
-//    account={
-//      id:sessionStorage.getItem('baiAccountId'),
-//      email:normalized,
-//      name:sessionStorage.getItem('baiAccountName')||'MyBAI User',
-//      firstName:sessionStorage.getItem('baiAccountFirstName')||'',
-//      lastName:sessionStorage.getItem('baiAccountLastName')||'',
-//      gender:sessionStorage.getItem('baiAccountGender')||'',
-//      dob:sessionStorage.getItem('baiAccountDob')||'',
-//      civilStatus:sessionStorage.getItem('baiAccountCivilStatus')||'',
-//      guardianEmail:sessionStorage.getItem('baiGuardianEmail')||'',
-//      type:sessionStorage.getItem('baiAccountType')||'adult',
-//      applications:getApplicationsSafeForAccount()
-//    };
-//    const accounts=getAccountRegistry();
-//    if(!accounts.some(a=>a.id===account.id)) saveAccountRegistry([...accounts,account]);
-//  }
-//  if(!account){ showFieldError(email,'No MyBAI account was found with this email address. Please create an account first.'); return; }
-//  email.closest('.field')?.classList.remove('invalid');
-//  savePendingLoginData({email:normalized,accountId:account.id,accountSnapshot:account});
-//  sessionStorage.setItem('baiPendingLoginAccountSnapshot',JSON.stringify(account));
-//  sessionStorage.setItem('baiLoginOtpSent','false');
-//  sessionStorage.removeItem('baiLoginOtp');
-//  sessionStorage.removeItem('baiLoginOtpSentAt');
-  go('login-verify');
-}
-function socialLogin(provider){
-  const names={google:'Google',facebook:'Facebook',x:'X'};
-  const name=names[provider]||'this provider';
+
+function socialLogin(provider) {
+  const names = { google: 'Google', facebook: 'Facebook', x: 'X' };
+  const name = names[provider] || 'this provider';
   document.getElementById('socialLoginMessage')?.remove();
-  const modal=document.createElement('div');
-  modal.id='socialLoginMessage';
-  modal.className='link-application-modal';
-  modal.innerHTML=`<div class="link-application-modal-card" role="dialog" aria-modal="true" aria-labelledby="socialLoginTitle"><h3 id="socialLoginTitle">Sign in with ${name}</h3><p>${name} sign-in is not connected to this prototype yet. Please sign in with your email address instead.</p><button type="button" class="primary" onclick="document.getElementById('socialLoginMessage')?.remove()">OK</button></div>`;
+  const modal = document.createElement('div');
+  modal.id = 'socialLoginMessage';
+  modal.className = 'link-application-modal';
+  modal.innerHTML = `<div class="link-application-modal-card" role="dialog" aria-modal="true" aria-labelledby="socialLoginTitle"><h3 id="socialLoginTitle">Sign in with ${name}</h3><p>${name} sign-in is not connected to this prototype yet. Please sign in with your email address instead.</p><button type="button" class="primary" onclick="document.getElementById('socialLoginMessage')?.remove()">OK</button></div>`;
   document.body.appendChild(modal);
 }
-/* ===== DEMO SHORTCUT: the X button skips sign-in and opens the User landing page ===== */
-function demoLogin(){
-  sessionStorage.setItem('baiAccountEmail','demo.user@bai.com');
-  sessionStorage.setItem('baiAccountName','MyBAI User');
-  sessionStorage.setItem('baiAccountCivilStatus','Single');
-  sessionStorage.setItem('baiLoggedIn','true');
+
+/** Demo shortcut: clicking the X social button opens a ready-to-test member session. */
+function demoLogin() {
+  sessionStorage.setItem('baiAccountEmail', 'demo.user@bai.com');
+  sessionStorage.setItem('baiAccountName', 'MyBAI User');
+  sessionStorage.setItem('baiAccountCivilStatus', 'Single');
+  sessionStorage.setItem('baiLoggedIn', 'true');
   go('dashboard');
 }
-function loginUser(){
-  const input=document.getElementById('loginOtp');
-  if(!validateOtp('loginOtp')) return;
-  const email=sessionStorage.getItem('baiPendingLoginEmail')||'';
-  if(!isValidEmailAddress(email)){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
-  sessionStorage.setItem('baiAccountEmail',email);
-  sessionStorage.setItem('baiAccountName','MyBAI User');
-  sessionStorage.setItem('baiLoggedIn','true');
+
+function loginUser() {
+  const input = document.getElementById('loginOtp');
+  if (!validateOtp('loginOtp')) return;
+  const email = sessionStorage.getItem('baiPendingLoginEmail') || '';
+  if (!isValidEmailAddress(email)) {
+    showFieldError(input, 'Your login session has expired. Please start again.');
+    return;
+  }
+  const existingAccount = findAccountByEmail(email);
+  if (existingAccount) {
+    hydrateAccountSession(existingAccount);
+  } else {
+    sessionStorage.setItem('baiAccountEmail', email);
+    sessionStorage.setItem('baiAccountName', 'MyBAI User');
+  }
+  sessionStorage.setItem('baiLoggedIn', 'true');
   sessionStorage.removeItem('baiLoginOtpSent');
   sessionStorage.removeItem('baiLoginOtp');
   sessionStorage.removeItem('baiLoginOtpSentAt');
   clearPendingLoginData();
-  go('dashboard');
-}
-function loginUserOld(){
-  //const input=document.getElementById('loginOtp');
-  //if(!validateOtp('loginOtp')) return;
-  //const pending=v62PendingLogin();
-  //if(!pending){ showFieldError(input,'Your login session has expired. Please start again.'); return; }
-  //const accounts=getAccountRegistry();
-  //let account=(pending.accountId?accounts.find(a=>a.id===pending.accountId):null)||findAccountByEmail(pending.email);
-  //if(!account && pending.accountSnapshot){
-  //  const snapshot=pending.accountSnapshot;
-  //  if(snapshot.id && normalizeAccountEmail(snapshot.email)===normalizeAccountEmail(pending.email)){
-  //    account=snapshot;
-  //    saveAccountRegistry([...accounts, snapshot]);
-  //  }
-  //}
-  //if(!account){ showFieldError(input,'No MyBAI account was found with this email address. Please create an account first.'); return; }
-  //hydrateAccountSession(account);
-  //sessionStorage.setItem('baiLoggedIn','true');
-  //sessionStorage.removeItem('baiLoginOtpSent');
-  //sessionStorage.removeItem('baiLoginOtp');
-  //sessionStorage.removeItem('baiLoginOtpSentAt');
-  //sessionStorage.removeItem('baiPendingLoginAccountSnapshot');
-  //clearPendingLoginData();
-  //sessionStorage.removeItem('baiComplaintReturn');
   go('dashboard');
 }
 function proceedAfterCreated(){

@@ -1,0 +1,928 @@
+<!doctype html>
+<!--
+  BAI Passport Tracking System — Presenter Phone Guide (/instructions/)
+  Clean matte dark-grayscale presenter flowchart (Anthropic-inspired neutral palette)
+  optimized for calm, high-contrast mobile readability.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>BAI Demo Flowcharts — Presenter Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-alt: #262523;
+      --surface-soft: #2e2d2a;
+      --border: #3a3936;
+      --border-strong: #6e6c66;
+      --fg: #faf9f5;
+      --fg-sub: #d4d2ca;
+      --fg-muted: #9c9a92;
+      --accent: #f0eee6;
+      --accent-ink: #141413;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      padding-bottom: 64px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Sticky Top Navigation & Credentials Bar */
+    .sticky-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(20, 20, 19, 0.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bar-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 11px 14px 7px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .bar-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: var(--fg);
+    }
+
+    .bar-title span {
+      color: var(--fg-muted);
+      font-weight: 500;
+    }
+
+    .creds-toggle {
+      border: 1px solid var(--border-strong);
+      background: var(--surface-alt);
+      color: var(--fg);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .creds-drawer {
+      display: none;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 8px 14px 10px;
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .creds-drawer.open {
+      display: grid;
+      gap: 6px;
+    }
+
+    .cred-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: var(--fg-sub);
+    }
+
+    .cred-row a {
+      color: var(--fg);
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .cred-row code {
+      font-size: 11.5px;
+      color: var(--fg);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 5px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 6px 14px 11px;
+      max-width: 520px;
+      margin: 0 auto;
+      scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      flex: 0 0 auto;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg-sub);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 700;
+    }
+
+    /* Main Mobile Viewport Container */
+    .container {
+      max-width: 440px;
+      margin: 0 auto;
+      padding: 16px 12px;
+    }
+
+    .tap-hint {
+      text-align: center;
+      font-size: 12px;
+      color: var(--fg-muted);
+      margin: 0 0 16px;
+    }
+
+    /* Module Headers */
+    .module-section {
+      margin-bottom: 36px;
+    }
+
+    .module-section[hidden] {
+      display: none;
+    }
+
+    .module-banner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--fg-sub);
+      border-radius: 10px;
+      padding: 13px 15px;
+      margin-bottom: 16px;
+    }
+
+    .module-banner small {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      margin-bottom: 3px;
+    }
+
+    .module-banner h2 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: var(--fg);
+    }
+
+    .module-banner p {
+      margin: 5px 0 0;
+      font-size: 12.5px;
+      color: var(--fg-sub);
+      line-height: 1.45;
+    }
+
+    /* Flowchart Nodes — Strictly uniform brightness, border, and surface */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .node {
+      width: min(320px, 94%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 13px;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    /* Only the tapped current step lights up */
+    .node.current-step {
+      border-color: var(--fg);
+      background: var(--surface-alt);
+      box-shadow: 0 0 0 1.5px var(--fg);
+    }
+
+    .node.current-step::before {
+      content: "● HERE";
+      position: absolute;
+      top: -10px;
+      right: 10px;
+      background: var(--fg);
+      color: var(--accent-ink);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .node-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: var(--surface-alt);
+      color: var(--fg-muted);
+      border: 1px solid var(--border);
+      margin-bottom: 5px;
+    }
+
+    .node-title {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--fg);
+      line-height: 1.3;
+    }
+
+    .node-sub {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--fg-sub);
+      font-weight: 400;
+    }
+
+    .node-sub b,
+    .node-sub em {
+      color: var(--fg);
+      font-weight: 600;
+      font-style: normal;
+    }
+
+    /* Uniform Monochrome SVG Connectors + Wide Solid Arrowheads */
+    .arrow-down {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 4px 0;
+      color: var(--fg-muted);
+      user-select: none;
+    }
+
+    .arrow-down svg {
+      display: block;
+      width: 24px;
+      height: 28px;
+      overflow: visible;
+    }
+
+    .arrow-down.short svg {
+      height: 22px;
+    }
+
+    .arrow-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--fg-sub);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-bottom: 2px;
+    }
+
+    /* Branch / Fork Containers */
+    .fork-box {
+      width: 100%;
+      border: 1px dashed var(--border-strong);
+      background: #171715;
+      border-radius: 12px;
+      padding: 14px 8px 10px;
+      position: relative;
+    }
+
+    .fork-title {
+      text-align: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--fg);
+      background: var(--surface-alt);
+      border: 1px solid var(--border-strong);
+      display: table;
+      margin: -24px auto 10px;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    .lanes-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+    }
+
+    .lane {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .lane-pill {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--fg-sub);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 9px;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .lane .node,
+    .grid-2x2 .node {
+      width: 100%;
+      padding: 10px 10px;
+    }
+
+    .lane .node-title,
+    .grid-2x2 .node-title {
+      font-size: 13px;
+    }
+
+    .lane .node-sub,
+    .grid-2x2 .node-sub {
+      font-size: 11.5px;
+      line-height: 1.4;
+    }
+
+    /* 2x2 Grid for Renewal Reasons */
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    /* Callout Chip inside Nodes */
+    .side-chip {
+      margin-top: 7px;
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--fg-sub);
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+
+    /* Segue Box Between Modules */
+    .transition-cue {
+      margin-top: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 11px 13px;
+      font-size: 12.5px;
+      line-height: 1.48;
+      color: var(--fg-sub);
+    }
+
+    .transition-cue b {
+      display: block;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--fg);
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="sticky-bar">
+    <div class="bar-top">
+      <div class="bar-title">BAI <span>/ Presenter Guide</span></div>
+      <button type="button" class="creds-toggle" onclick="toggleCreds()" id="credsBtn">Logins &amp; Links ▾</button>
+    </div>
+
+    <div class="creds-drawer" id="credsDrawer">
+      <div class="cred-row">
+        <span><a href="../" target="_blank">Tab 1: Member</a></span>
+        <span>Sign Up or tap <code>X</code> icon</span>
+      </div>
+      <div class="cred-row">
+        <span><a href="../personnel/" target="_blank">Tab 2: Personnel</a></span>
+        <span><code>support@bai.local</code> / <code>BAI-support</code></span>
+      </div>
+      <div class="cred-row">
+        <span><a href="../admin/" target="_blank">Tab 3: Admin</a></span>
+        <span><code>admin@bai.local</code> / <code>BAI-admin</code></span>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="Module filter">
+      <button type="button" class="tab-btn active" onclick="filterMod('all', this)">All</button>
+      <button type="button" class="tab-btn" onclick="filterMod('overview', this)">Overview</button>
+      <button type="button" class="tab-btn" onclick="filterMod('m1', this)">1. Login</button>
+      <button type="button" class="tab-btn" onclick="filterMod('m2', this)">2. Support</button>
+      <button type="button" class="tab-btn" onclick="filterMod('m3', this)">3. Renewal</button>
+      <button type="button" class="tab-btn" onclick="filterMod('m4', this)">4. Admin</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <p class="tap-hint">Tap any step while speaking to pin a marker on where you are.</p>
+
+    <!-- ================================================================
+         MASTER OVERVIEW
+         ================================================================ -->
+    <section class="module-section" data-mod="overview">
+      <div class="module-banner">
+        <small>Presentation Roadmap</small>
+        <h2>4-Module Demo Order</h2>
+        <p>Matches the professor's syllabus sheet from top to bottom.</p>
+      </div>
+
+      <div class="flow">
+        <div class="node">
+          <span class="node-tag">Weeks 1–4</span>
+          <span class="node-title">1. Login, New Passport &amp; Status</span>
+          <span class="node-sub">Create account with OTP, apply or link ARN, and check status timeline.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Weeks 5–8</span>
+          <span class="node-title">2. Help Center, AI &amp; Enquiries</span>
+          <span class="node-sub">Browse Valid IDs FAQ, ask KB-grounded AI, and reply live from Personnel.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Weeks 10–13</span>
+          <span class="node-title">3. Passport Renewal Wizard</span>
+          <span class="node-sub">Pick renewal reason, upload conditional proof, and preview fees.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Weeks 14–17</span>
+          <span class="node-title">4. Admin Approval &amp; Release</span>
+          <span class="node-sub">Manage staff accounts, approve renewal, and watch status advance live.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         MODULE 1: LOGIN, NEW PASSPORT & APPLICATION STATUS
+         ================================================================ -->
+    <section class="module-section" data-mod="m1">
+      <div class="module-banner">
+        <small>Module 1 · Weeks 1–4</small>
+        <h2>Login, Registration &amp; Status</h2>
+        <p>Tab 1 (Member Portal) — Account access, first-time passport, and tracking.</p>
+      </div>
+
+      <div class="flow">
+        <div class="node">
+          <span class="node-tag">Tab 1 · #login</span>
+          <span class="node-title">Open MyBAI Member Site</span>
+          <span class="node-sub">Introduce the portal designed to make passport tracking clear instead of stressful.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="fork-box">
+          <div class="fork-title">Sign-In Path</div>
+          <div class="lanes-2">
+            <div class="lane">
+              <span class="lane-pill">New Member</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Create Account</span>
+                <span class="node-sub">Pick <b>Adult</b> or <b>Minor</b> tile so only relevant requirements show.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Fill Info &amp; Upload ID</span>
+                <span class="node-sub">DOB &amp; Civil Status use dropdowns to prevent typos; upload photo &amp; ID.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Verify 7-Digit OTP</span>
+                <span class="node-sub">Request simulated email OTP (60s resend timer) to finish sign-up.</span>
+              </div>
+            </div>
+
+            <div class="lane">
+              <span class="lane-pill">Returning / Quick</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Email + OTP Login</span>
+                <span class="node-sub">Passwordless sign-in via 7-digit code (or tap <b>X</b> icon for instant demo login).</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">#dashboard</span>
+          <span class="node-title">Member Dashboard</span>
+          <span class="node-sub">Point out Recent Updates, Passport Overview card, and quick service shortcuts.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="fork-box">
+          <div class="fork-title">Start or Link Passport</div>
+          <div class="lanes-2">
+            <div class="lane">
+              <span class="lane-pill">Apply New</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">1. Type &amp; Documents</span>
+                <span class="node-sub">Upload Birth Cert + Valid ID (or Guardian docs for minors).<span class="side-chip">Tap Valid IDs FAQ link &amp; return!</span></span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">2. Personal + DFA Site</span>
+                <span class="node-sub">Prefilled profile data + pick <b>DFA Consular Office</b> right in Personal Details.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">3. Contact &amp; Emergency</span>
+                <span class="node-sub">Enter address, mobile, occupation, and emergency contact.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">4. Oath &amp; e-Signature</span>
+                <span class="node-sub">Accept sworn declaration and type full legal name.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">5. Fee &amp; Submit</span>
+                <span class="node-sub">Choose Regular (₱950) or Express (₱1,200), optional Courier (+₱150), review &amp; submit.</span>
+              </div>
+            </div>
+
+            <div class="lane">
+              <span class="lane-pill">Existing DFA App</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Link 17-Digit ARN</span>
+                <span class="node-sub">Enter an existing DFA Appointment Reference No. to track it in MyBAI.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">#status</span>
+          <span class="node-title">Check Application Status</span>
+          <span class="node-sub">Show generated <b>BAI-APP</b> ID, references, and horizontal 6-step timeline. (Briefly mention Profile &amp; OTP Email Change.)</span>
+        </div>
+      </div>
+
+      <div class="transition-cue">
+        <b>Next — Module 2 Segue</b>
+        "What if the applicant has a question about requirements or status while waiting? They click <em>Contact Support</em> in the sidebar..."
+      </div>
+    </section>
+
+    <!-- ================================================================
+         MODULE 2: HELP CENTER, AI ASSISTANT & SUPPORT ENQUIRIES
+         ================================================================ -->
+    <section class="module-section" data-mod="m2">
+      <div class="module-banner">
+        <small>Module 2 · Weeks 5–8</small>
+        <h2>Help Center, AI &amp; Enquiries</h2>
+        <p>Tab 1 ↔ Tab 2 (Personnel) — Self-service FAQ, AI chat, and live staff replies.</p>
+      </div>
+
+      <div class="flow">
+        <div class="node">
+          <span class="node-tag">Tab 1 · #help-center</span>
+          <span class="node-title">Open Help Center</span>
+          <span class="node-sub">Show Knowledge Base search bar, category cards, FAQs, and Service Advisories.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="fork-box">
+          <div class="fork-title">Self-Service vs AI Chat</div>
+          <div class="lanes-2">
+            <div class="lane">
+              <span class="lane-pill">Browse FAQs</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Valid IDs &amp; Docs FAQ</span>
+                <span class="node-sub">Open the top FAQ listing accepted IDs, new/renewal checklists, and upload rules.</span>
+              </div>
+            </div>
+
+            <div class="lane">
+              <span class="lane-pill">Ask AI First</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">AI Assistant Chat</span>
+                <span class="node-sub">Answers strictly from published KB articles with a clickable source link.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Escalate to Human</span>
+                <span class="node-sub">Tap "No, I still need help" to carry the chat transcript into an enquiry.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down" data-arrow data-label="Or Direct Submit"></div>
+
+        <div class="node">
+          <span class="node-tag">#enquiry-form</span>
+          <span class="node-title">Submit Formal Enquiry</span>
+          <span class="node-sub">Pick category, link passport application, and attach up to 5 files (saved in IndexedDB) → creates <b>ENQ-000000001</b>.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Switch to Tab 2 · /personnel/</span>
+          <span class="node-title">Personnel Queue &amp; Reply</span>
+          <span class="node-sub">Log in as support staff, open the enquiry, view attached files &amp; AI transcript, send a reply, and mark <b>Resolved</b>.<span class="side-chip">Bonus: Show KB Tab (#kb) to edit AI articles!</span></span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Back to Tab 1 · Bell Icon</span>
+          <span class="node-title">Live Notification &amp; Close</span>
+          <span class="node-sub">Show unread bell badge &amp; real-time reply (syncs in 1.5s), then click <b>Close Enquiry</b>.</span>
+        </div>
+      </div>
+
+      <div class="transition-cue">
+        <b>Next — Module 3 Segue</b>
+        "Now let's show how an existing passport holder renews their passport..." <em>(Tip: Cancel any active app on Check Status first to show the 1-active-app rule!)</em>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         MODULE 3: PASSPORT RENEWAL WIZARD
+         ================================================================ -->
+    <section class="module-section" data-mod="m3">
+      <div class="module-banner">
+        <small>Module 3 · Weeks 10–13</small>
+        <h2>Passport Renewal Wizard</h2>
+        <p>Tab 1 (#renewal-form) — Reason-based uploads, DFA office placement, and fee preview.</p>
+      </div>
+
+      <div class="flow">
+        <div class="node">
+          <span class="node-tag">Tab 1 · #renewal-form</span>
+          <span class="node-title">1. Select Renewal Reason</span>
+          <span class="node-sub">Upload Legal Declaration + Valid ID, then show how the reason dropdown reveals the exact extra proof needed.<span class="side-chip">Show inline Valid IDs &amp; Requirements FAQ link</span></span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="fork-box">
+          <div class="fork-title">4 Renewal Reasons</div>
+          <div class="grid-2x2">
+            <div class="node">
+              <span class="node-title">Expiring / Expired</span>
+              <span class="node-sub">Core declaration &amp; Valid ID only. No penalty.</span>
+            </div>
+            <div class="node">
+              <span class="node-title">Passport is Lost</span>
+              <span class="node-sub">Requires <b>Affidavit of Loss</b> upload (+₱350 penalty).</span>
+            </div>
+            <div class="node">
+              <span class="node-title">Passport is Damaged</span>
+              <span class="node-sub">Requires <b>Damaged / Affidavit</b> upload (+₱350 penalty).</span>
+            </div>
+            <div class="node">
+              <span class="node-title">Citizen Status Changed</span>
+              <span class="node-sub">Requires <b>Status Change Certificate</b> upload.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Step 2 of 5</span>
+          <span class="node-title">2. Personal + DFA Office</span>
+          <span class="node-sub">Prefilled account details, current passport info, and <b>DFA Consular Office</b> placed right beside <em>Passport Place of Issue</em>.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Step 3 of 5</span>
+          <span class="node-title">3. Contact &amp; Emergency</span>
+          <span class="node-sub">Present/permanent address, mobile, occupation, and emergency contact.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Step 4 of 5</span>
+          <span class="node-title">4. Sworn Oath &amp; Signature</span>
+          <span class="node-sub">Accept RA 8239 sworn declaration and enter electronic signature.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Step 5 of 5</span>
+          <span class="node-title">5. Live Fee &amp; Submit Renewal</span>
+          <span class="node-sub">Shows Processing + Courier + ₱350 penalty total and full review grid → creates <b>BAI-REN</b> record in <b>Pending</b> state.</span>
+        </div>
+      </div>
+
+      <div class="transition-cue">
+        <b>Next — Module 4 Segue</b>
+        "That renewal request is now waiting for review—let's switch to the Administrator Portal to manage staff and approve the passport."
+      </div>
+    </section>
+
+    <!-- ================================================================
+         MODULE 4: ADMIN PORTAL & PASSPORT APPROVAL
+         ================================================================ -->
+    <section class="module-section" data-mod="m4">
+      <div class="module-banner">
+        <small>Module 4 · Weeks 14–17</small>
+        <h2>Admin Portal &amp; Approval</h2>
+        <p>Tab 3 (/admin/) → Tab 1 (#status) — Staff governance, review decision, and live release.</p>
+      </div>
+
+      <div class="flow">
+        <div class="node">
+          <span class="node-tag">Switch to Tab 3 · /admin/</span>
+          <span class="node-title">Sign In to Admin Portal</span>
+          <span class="node-sub">Log in with <b>admin@bai.local</b> / <b>BAI-admin</b> to access staff, enquiries, renewals, and new passports.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="fork-box">
+          <div class="fork-title">Admin Capabilities</div>
+          <div class="lanes-2">
+            <div class="lane">
+              <span class="lane-pill">Personnel Accounts</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Create / Disable Staff</span>
+                <span class="node-sub">Generates <b>PERS-XXXX</b> ID and temporary password; can disable accounts anytime.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Forced Password Change</span>
+                <span class="node-sub">New personnel signing into <code>/personnel/</code> must set a new password first.</span>
+              </div>
+            </div>
+
+            <div class="lane">
+              <span class="lane-pill">Passport Approval</span>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Open Renewals / New Apps</span>
+                <span class="node-sub">Filter queue by status and tap <b>Review</b> on the member's application.</span>
+              </div>
+              <div class="arrow-down short" data-arrow="short"></div>
+              <div class="node">
+                <span class="node-title">Verify &amp; Approve</span>
+                <span class="node-sub">Check applicant fields &amp; uploaded filenames, add remarks, and save <b>Approved</b>.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down" data-arrow data-label="After Saving Approved"></div>
+
+        <div class="node">
+          <span class="node-tag">Back to Tab 1 · #status</span>
+          <span class="node-title">Status Updates to Approved</span>
+          <span class="node-sub">Member's Check Status page immediately reflects the administrator's decision and remarks.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow data-label="Auto-Simulates (+3s each)"></div>
+
+        <div class="node">
+          <span class="node-title">Processing → Ready for Release</span>
+          <span class="node-sub">Watch the horizontal stepper advance automatically every 3 seconds to demonstrate downstream fulfillment.</span>
+        </div>
+
+        <div class="arrow-down" data-arrow></div>
+
+        <div class="node">
+          <span class="node-tag">Lifecycle Complete</span>
+          <span class="node-title">Released / Confirm Received</span>
+          <span class="node-sub">Applicant clicks <b>Confirm Passport Received</b> (or reaches Released / Collected), completing the full journey!</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Inject monochrome SVG arrows (3.5px shaft + wide 18px solid arrowhead)
+    document.querySelectorAll('[data-arrow]').forEach(function (el) {
+      var short = el.getAttribute('data-arrow') === 'short';
+      var label = el.getAttribute('data-label');
+      var h = short ? 24 : 30;
+      var lineEnd = h - 11;
+      var labelHtml = label ? '<span class="arrow-label">' + label + '</span>' : '';
+      el.innerHTML =
+        labelHtml +
+        '<svg viewBox="0 0 26 ' + h + '" aria-hidden="true">' +
+          '<line x1="13" y1="1" x2="13" y2="' + lineEnd + '" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>' +
+          '<polygon points="4,' + (h - 12) + ' 22,' + (h - 12) + ' 13,' + (h - 1) + '" fill="currentColor"/>' +
+        '</svg>';
+    });
+
+    // Tap any node to mark "● HERE" while speaking
+    document.querySelectorAll('.node').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var wasActive = card.classList.contains('current-step');
+        document.querySelectorAll('.node.current-step').forEach(function (c) {
+          c.classList.remove('current-step');
+        });
+        if (!wasActive) card.classList.add('current-step');
+      });
+    });
+
+    // Filter by module tab for focused single-module viewing on phone
+    function filterMod(mod, btn) {
+      document.querySelectorAll('.tab-btn').forEach(function (b) {
+        b.classList.remove('active');
+      });
+      if (btn) btn.classList.add('active');
+      document.querySelectorAll('.module-section').forEach(function (sec) {
+        sec.hidden = mod !== 'all' && sec.getAttribute('data-mod') !== mod;
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Toggle quick credentials drawer
+    function toggleCreds() {
+      var drawer = document.getElementById('credsDrawer');
+      var open = drawer.classList.toggle('open');
+      document.getElementById('credsBtn').textContent = open ? 'Logins & Links ▴' : 'Logins & Links ▾';
+    }
+  </script>
+</body>
+</html>
