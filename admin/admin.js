@@ -176,14 +176,14 @@ function login() {
         <div class="brand"><img src="assets/dashboard-logo.png" alt="BAI logo"></div>
         <h2>BAI ADMIN PORTAL</h2>
         <p>Authorized administrators only.</p>
-        <form onsubmit="adminSignIn(event)">
+        <form onsubmit="adminSignIn(event)" novalidate>
           <div class="field">
-            <label>Admin Email</label>
-            <input id="adminEmail" type="email" required autocomplete="username" placeholder="Enter admin email">
+            <label for="adminEmail">Admin Email</label>
+            <input id="adminEmail" type="text" autocomplete="username" placeholder="Enter admin email">
           </div>
           <div class="field">
-            <label>Password</label>
-            <input id="adminPassword" type="password" required autocomplete="current-password" placeholder="Enter password">
+            <label for="adminPassword">Password</label>
+            <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Enter password">
           </div>
           <div id="loginError" class="error"></div>
           <button class="primary" type="submit">Sign In</button>
@@ -192,15 +192,12 @@ function login() {
     </div>`;
 }
 
+/** Presentation-friendly sign-in: accepts any credentials (or blank to skip) without checking registration. */
 function adminSignIn(e) {
   e.preventDefault();
-  const email = document.getElementById('adminEmail').value.trim().toLowerCase();
-  const password = document.getElementById('adminPassword').value;
-  if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
-    document.getElementById('loginError').textContent = 'Invalid administrator credentials.';
-    return;
-  }
+  const email = (document.getElementById('adminEmail')?.value || '').trim().toLowerCase() || ADMIN_EMAIL;
   sessionStorage.setItem(ADMIN_SESSION, 'true');
+  sessionStorage.setItem('baiAdminEmail', email);
   go('dashboard');
 }
 

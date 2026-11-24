@@ -301,19 +301,19 @@ function validateLoginEmailInput(input) {
   return false;
 }
 
-function loginVerify(){
- const email=esc(sessionStorage.getItem('baiPendingLoginEmail')||'');
- const sent=sessionStorage.getItem('baiLoginOtpSent')==='true';
- return `<div class="auth-screen terminal-auth"><div class="auth-card verify-card">
-   <div class="message-screen verify-message">
-     <button class="auth-back back-btn" onclick="go('login')" aria-label="Back to login">← Back</button>
-     <h1>EMAIL VERIFICATION</h1>
-     ${sent ? `<p>A verification <b>One-Time Password (OTP)</b> has been sent<br>to <b>${email||'your email address'}</b>. Enter the code below.</p>` : `<p>We'll send a 7-digit verification code<br>to <b>${email||'your email address'}</b>.</p>`}
-     ${sent ? `<div class="field verify-code-field"><label>Verification Code</label><input id="loginOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" pattern="[0-9]{7}" oninput="sanitizeOtp(this)"></div>` : `<button class="primary otp-send-btn" onclick="sendOtp('login')">Send Code</button>`}
-     ${sent ? `<p class="verify-warning">do not share the verification code with anyone else</p><button class="primary" onclick="loginUser()">Continue</button><button class="resend-btn" id="loginResend" onclick="sendOtp('login')">Resend Code</button>` : ''}
-     ${sent ? `<p class="otp-status" id="loginOtpStatus"></p>` : ''}
-   </div>
- </div></div>`;
+function loginVerify() {
+  const email = esc(sessionStorage.getItem('baiPendingLoginEmail') || 'demo.user@bai.com');
+  const sent = sessionStorage.getItem('baiLoginOtpSent') === 'true';
+  return `<div class="auth-screen terminal-auth"><div class="auth-card verify-card">
+    <div class="message-screen verify-message">
+      <button class="auth-back back-btn" onclick="go('login')" aria-label="Back to login">← Back</button>
+      <h1>EMAIL VERIFICATION</h1>
+      ${sent ? `<p>A verification <b>One-Time Password (OTP)</b> has been sent<br>to <b>${email}</b>. Enter the code below.</p>` : `<p>We'll send a 7-digit verification code<br>to <b>${email}</b>.</p>`}
+      ${sent ? `<div class="field verify-code-field"><label for="loginOtp">Verification Code</label><input id="loginOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="0000000" oninput="sanitizeOtp(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();loginUser();}"></div>` : `<button class="primary otp-send-btn" onclick="sendOtp('login')">Send Code</button>`}
+      ${sent ? `<p class="verify-warning">do not share the verification code with anyone else</p><button class="primary" onclick="loginUser()">Continue</button><button class="resend-btn" id="loginResend" onclick="sendOtp('login')">Resend Code</button>` : `<button class="resend-btn" onclick="loginUser()">Skip verification</button>`}
+      ${sent ? `<p class="otp-status" id="loginOtpStatus"></p>` : ''}
+    </div>
+  </div></div>`;
 }
 
 function signup(){
@@ -2035,25 +2035,24 @@ function wireEnquiryLiveValidation(){
 
 
 /* Login stays focused on authentication; support is accessed from the member Help Center. */
-function login(){
- return `<div class="login-screen">
-
-   <section class="login-panel"><div class="login-box">
-     <h1 class="aero">LOG IN TO MYBAI</h1><p class="subtitle">Enter your email address to access your account</p>
-     <div class="field"><label>Email Address</label><input id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="Enter your email address" oninput="validateLoginEmailInput(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();startLogin();}"></div>
-     <p class="otp-hint">A One-Time Password (OTP) will be sent to the email address<br>associated with your MyBAI account.</p>
-     <div class="auth-actions"><button class="primary" onclick="startLogin()">Sign in</button></div>
-     <div class="divider">or sign in with</div>
-     <div class="social-row">
-       <button type="button" class="social-btn" onclick="socialLogin('google')" aria-label="Sign in with Google" title="Google"><i class="fa-brands fa-google"></i></button>
-       <button type="button" class="social-btn" onclick="socialLogin('facebook')" aria-label="Sign in with Facebook" title="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
-       <button type="button" class="social-btn" onclick="demoLogin()" aria-label="Sign in with X" title="X"><i class="fa-brands fa-x-twitter"></i></button>
-     </div>
-     <button class="primary" onclick="go('signup')">Create Account</button>
-     <div class="terms">By signing in, you agree to our <a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms of Use</a> and <a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>.</div>
-   </div></section>
-   <section class="login-visual" aria-label="BAI Passport Tracking System"></section>
- </div>`;
+function login() {
+  return `<div class="login-screen">
+    <section class="login-panel"><div class="login-box">
+      <h1 class="aero">LOG IN TO MYBAI</h1><p class="subtitle">Enter your email address to access your account</p>
+      <div class="field"><label for="loginEmail">Email Address</label><input id="loginEmail" type="text" autocomplete="email" placeholder="Enter your email address" oninput="validateLoginEmailInput(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();startLogin();}"></div>
+      <p class="otp-hint">A One-Time Password (OTP) will be sent to the email address<br>associated with your MyBAI account.</p>
+      <div class="auth-actions"><button class="primary" onclick="startLogin()">Sign in</button></div>
+      <div class="divider">or sign in with</div>
+      <div class="social-row">
+        <button type="button" class="social-btn" onclick="socialLogin('google')" aria-label="Sign in with Google" title="Google"><i class="fa-brands fa-google"></i></button>
+        <button type="button" class="social-btn" onclick="socialLogin('facebook')" aria-label="Sign in with Facebook" title="Facebook"><i class="fa-brands fa-facebook-f"></i></button>
+        <button type="button" class="social-btn" onclick="demoLogin()" aria-label="Sign in with X" title="X"><i class="fa-brands fa-x-twitter"></i></button>
+      </div>
+      <button class="primary" onclick="go('signup')">Create Account</button>
+      <div class="terms">By signing in, you agree to our <a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms of Use</a> and <a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>.</div>
+    </div></section>
+    <section class="login-visual" aria-label="BAI Passport Tracking System"></section>
+  </div>`;
 }
 
 /* Correct email migration: capture the old address before changing it. */
@@ -2885,20 +2884,53 @@ function completeRegistrationVerification(){
   if(account.type) sessionStorage.removeItem(registrationDraftKey(account.type));
   go('created');
 }
+/** Ensures any sign-in email (registered or unregistered) has a complete member record in `baiAccountRegistry`. */
+function ensureMemberAccountForLogin(rawEmail) {
+  const cleaned = String(rawEmail || '').trim().toLowerCase();
+  const normalized = cleaned
+    ? (cleaned.includes('@') ? cleaned : `${cleaned}@bai.com`)
+    : 'demo.user@bai.com';
+  let account = findAccountByEmail(normalized);
+  if (!account) {
+    const localPart = normalized.split('@')[0].replace(/[._-]+/g, ' ').trim();
+    const parts = localPart.split(/\s+/).filter(Boolean);
+    const isDefaultDemo = normalized === 'demo.user@bai.com';
+    const firstName = isDefaultDemo ? 'MyBAI' : formatPersonName(parts[0] || 'MyBAI');
+    const lastName = isDefaultDemo ? 'User' : formatPersonName(parts.slice(1).join(' ') || 'User');
+    account = {
+      id: `BAI-MEM-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      email: normalized,
+      name: `${firstName} ${lastName}`.trim(),
+      firstName,
+      lastName,
+      gender: 'Male',
+      dob: '1999-01-15',
+      civilStatus: 'Single',
+      guardianEmail: '',
+      type: 'adult',
+      applications: []
+    };
+    const accounts = getAccountRegistry();
+    accounts.push(account);
+    saveAccountRegistry(accounts);
+  }
+  return account;
+}
+
 function startLogin() {
-  const email = document.getElementById('loginEmail');
-  email?.closest('.field')?.querySelector('.field-error')?.remove();
-  if (!email || !email.value.trim()) {
-    showFieldError(email, 'Please enter your email address.');
+  const emailInput = document.getElementById('loginEmail');
+  emailInput?.closest('.field')?.querySelector('.field-error')?.remove();
+  emailInput?.closest('.field')?.classList.remove('invalid');
+  const raw = (emailInput?.value || '').trim();
+
+  // Presentation skip: leaving email blank signs straight into the Dashboard
+  if (!raw) {
+    demoLogin();
     return;
   }
-  if (!isValidEmailAddress(email.value)) {
-    showFieldError(email, 'Please enter a valid email address.');
-    return;
-  }
-  const normalized = normalizeAccountEmail(email.value);
-  email.closest('.field')?.classList.remove('invalid');
-  sessionStorage.setItem('baiPendingLoginEmail', normalized);
+
+  const account = ensureMemberAccountForLogin(raw);
+  savePendingLoginData({ email: account.email, accountId: account.id, accountSnapshot: account });
   sessionStorage.setItem('baiLoginOtpSent', 'false');
   sessionStorage.removeItem('baiLoginOtp');
   sessionStorage.removeItem('baiLoginOtpSentAt');
@@ -2906,40 +2938,31 @@ function startLogin() {
 }
 
 function socialLogin(provider) {
-  const names = { google: 'Google', facebook: 'Facebook', x: 'X' };
-  const name = names[provider] || 'this provider';
-  document.getElementById('socialLoginMessage')?.remove();
-  const modal = document.createElement('div');
-  modal.id = 'socialLoginMessage';
-  modal.className = 'link-application-modal';
-  modal.innerHTML = `<div class="link-application-modal-card" role="dialog" aria-modal="true" aria-labelledby="socialLoginTitle"><h3 id="socialLoginTitle">Sign in with ${name}</h3><p>${name} sign-in is not connected to this prototype yet. Please sign in with your email address instead.</p><button type="button" class="primary" onclick="document.getElementById('socialLoginMessage')?.remove()">OK</button></div>`;
-  document.body.appendChild(modal);
+  const emailMap = {
+    google: 'google.user@bai.com',
+    facebook: 'facebook.user@bai.com',
+    x: 'demo.user@bai.com'
+  };
+  demoLogin(emailMap[provider] || 'demo.user@bai.com');
 }
 
-/** Demo shortcut: clicking the X social button opens a ready-to-test member session. */
-function demoLogin() {
-  sessionStorage.setItem('baiAccountEmail', 'demo.user@bai.com');
-  sessionStorage.setItem('baiAccountName', 'MyBAI User');
-  sessionStorage.setItem('baiAccountCivilStatus', 'Single');
+/** Presentation-friendly instant sign-in: provisions/hydrates a full member session and opens Dashboard. */
+function demoLogin(customEmail = 'demo.user@bai.com') {
+  const typedEmail = (document.getElementById('loginEmail')?.value || '').trim();
+  const account = ensureMemberAccountForLogin(typedEmail || customEmail);
+  hydrateAccountSession(account);
   sessionStorage.setItem('baiLoggedIn', 'true');
+  sessionStorage.removeItem('baiLoginOtpSent');
+  sessionStorage.removeItem('baiLoginOtp');
+  sessionStorage.removeItem('baiLoginOtpSentAt');
+  clearPendingLoginData();
   go('dashboard');
 }
 
 function loginUser() {
-  const input = document.getElementById('loginOtp');
-  if (!validateOtp('loginOtp')) return;
-  const email = sessionStorage.getItem('baiPendingLoginEmail') || '';
-  if (!isValidEmailAddress(email)) {
-    showFieldError(input, 'Your login session has expired. Please start again.');
-    return;
-  }
-  const existingAccount = findAccountByEmail(email);
-  if (existingAccount) {
-    hydrateAccountSession(existingAccount);
-  } else {
-    sessionStorage.setItem('baiAccountEmail', email);
-    sessionStorage.setItem('baiAccountName', 'MyBAI User');
-  }
+  const rawEmail = sessionStorage.getItem('baiPendingLoginEmail') || 'demo.user@bai.com';
+  const account = ensureMemberAccountForLogin(rawEmail);
+  hydrateAccountSession(account);
   sessionStorage.setItem('baiLoggedIn', 'true');
   sessionStorage.removeItem('baiLoginOtpSent');
   sessionStorage.removeItem('baiLoginOtp');

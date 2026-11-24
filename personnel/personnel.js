@@ -306,14 +306,14 @@ function login() {
         <div class="brand"><img src="assets/dashboard-logo.png" alt="BAI logo"></div>
         <h2>BAI PERSONNEL PORTAL</h2>
         <p>Authorized support personnel only.</p>
-        <form onsubmit="signIn(event)">
+        <form onsubmit="signIn(event)" novalidate>
           <div class="field">
             <label for="email">Work Email</label>
-            <input id="email" type="email" autocomplete="username" required placeholder="Enter work email">
+            <input id="email" type="text" autocomplete="username" placeholder="Enter work email">
           </div>
           <div class="field">
             <label for="password">Password</label>
-            <input id="password" type="password" autocomplete="current-password" required placeholder="Enter password">
+            <input id="password" type="password" autocomplete="current-password" placeholder="Enter password">
           </div>
           <div id="loginError" class="error"></div>
           <button class="primary" type="submit">Log In</button>
@@ -322,25 +322,43 @@ function login() {
     </div>`;
 }
 
+/** Presentation-friendly sign-in: accepts any email/password (or blank to skip) without requiring prior registration. */
 function signIn(e) {
   e.preventDefault();
-  const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
-  const pass = document.getElementById('password')?.value || '';
-  const personnel = getPersonnelAccounts().find(p => p.email === email && p.password === pass);
+  const rawEmail = (document.getElementById('email')?.value || '').trim().toLowerCase();
+  const normalizedEmail = rawEmail
+    ? (rawEmail.includes('@') ? rawEmail : `${rawEmail}@bai.local`)
+    : '';
+  const accounts = getPersonnelAccounts();
+  const matched = normalizedEmail
+    ? accounts.find(p => String(p.email || '').toLowerCase() === normalizedEmail)
+    : null;
 
+  let personnel = matched;
   if (!personnel) {
-    document.getElementById('loginError').textContent = 'Invalid personnel credentials.';
-    return;
-  }
-  if (personnel.status !== 'Active') {
-    document.getElementById('loginError').textContent = 'This personnel account is disabled. Contact an administrator.';
-    return;
+    if (normalizedEmail) {
+      const namePart = normalizedEmail.split('@')[0].replace(/[._-]+/g, ' ').trim();
+      personnel = {
+        id: 'PERS-' + Date.now().toString(36).toUpperCase().slice(-4),
+        email: normalizedEmail,
+        password: document.getElementById('password')?.value || 'BAI-support',
+        name: displayPersonName(namePart || 'Support Personnel'),
+        role: 'Personnel',
+        status: 'Active',
+        mustChangePassword: false,
+        contact: ''
+      };
+      accounts.push(personnel);
+      savePersonnelAccounts(accounts);
+    } else {
+      personnel = accounts.find(p => p.status === 'Active') || accounts[0] || DEFAULT_PERSONNEL[0];
+    }
   }
 
   sessionStorage.setItem(PERSONNEL_SESSION, 'true');
   sessionStorage.setItem('baiPersonnelId', personnel.id);
 
-  if (personnel.mustChangePassword) go('change-password');
+  if (matched && matched.mustChangePassword) go('change-password');
   else go('dashboard');
 }
 
