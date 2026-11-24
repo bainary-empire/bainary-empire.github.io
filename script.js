@@ -330,26 +330,28 @@ function signup(){
  </div></div>`;
 }
 
-function adultRegister(){
- return `<div class="auth-screen terminal-auth"><div class="registration-card">
-   <button class="auth-back auth-back-form back-btn" onclick="go('signup')" aria-label="Back to account type">← Back</button>
-   <div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>REGISTRATION REQUIREMENTS</h1><p>Please fill out the form to create an Account</p></div></div>
-   <p class="id-match-note"><b>Note:</b> The information entered must be the same as the information shown on the valid ID you submit.</p>
-   <div class="photo-row">${uploadBox('adultPhoto','Recent<br>Photo','photo-box')}<div class="upload-note"><b>1:1 Recent Photo</b><br>on a white background<br>no facial expressions</div></div>
-   <div class="form-grid adult-grid">
-     <div class="field"><label>First Name</label><input id="adultFirstName" autocomplete="given-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
-     <div class="field"><label>Last Name</label><input id="adultLastName" autocomplete="family-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
-     <div class="field"><label>Gender</label><select id="adultGender"><option value="" disabled selected hidden>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-     <div class="field"><label>Date of Birth</label><div class="date-select-group"><select id="adultDobMonth" aria-label="Birth month" onchange="syncAccountDate('adultDob')"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select><select id="adultDobDay" aria-label="Birth day" onchange="syncAccountDate('adultDob')"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select><select id="adultDobYear" aria-label="Birth year" onchange="syncAccountDate('adultDob')"><option value="">Year</option></select></div><input id="adultDob" type="hidden" aria-label="Date of Birth"></div>
-     <div class="field"><label>Civil Status</label><select id="adultCivil"><option value="" disabled selected hidden>Select</option><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option><option>Separated</option></select></div>
-     <div class="field full"><label>E-Mail</label><input id="adultEmail" type="email" placeholder="example@example.com"></div>
-   </div>
-   ${uploadBox('adultGovernmentId','Valid Government ID','wide-upload')}
-   <button class="primary" style="margin-top:10px" onclick="createAccount('adult')">Create Account</button>
-   <label class="agreement"><input type="checkbox"><a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></label>
-   <label class="agreement"><input type="checkbox"><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a></label>
-   <p class="agreement-note">Review the Privacy Policy and Terms &amp; Conditions before using this prototype.</p>
- </div></div>`;
+function adultRegister() {
+  return `<div class="auth-screen terminal-auth"><div class="registration-card">
+    <button class="auth-back auth-back-form back-btn" onclick="go('signup')" aria-label="Back to account type">← Back</button>
+    <div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1>REGISTRATION REQUIREMENTS</h1><p>Please fill out the form to create an Account</p></div></div>
+    <p class="id-match-note"><b>Note:</b> The information entered must be the same as the information shown on the valid ID you submit.</p>
+    <div class="photo-row">${uploadBox('adultPhoto', 'Recent<br>Photo', 'photo-box')}<div class="upload-note"><b>1:1 Recent Photo</b><br>On a plain white background<br>Neutral facial expression</div></div>
+    <div class="form-grid adult-grid">
+      <div class="field"><label for="adultFirstName">First Name</label><input id="adultFirstName" autocomplete="given-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\\s\\'-]+"></div>
+      <div class="field"><label for="adultLastName">Last Name</label><input id="adultLastName" autocomplete="family-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\\s\\'-]+"></div>
+      <div class="field"><label for="adultGender">Gender</label><select id="adultGender"><option value="" disabled selected hidden>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+      <div class="field"><label for="adultCivil">Civil Status</label><select id="adultCivil"><option value="" disabled selected hidden>Select</option><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option><option>Separated</option></select></div>
+      <div class="field full"><label for="adultDobMonth">Date of Birth</label><div class="date-select-group"><select id="adultDobMonth" aria-label="Birth month" onchange="syncAccountDate('adultDob')"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select><select id="adultDobDay" aria-label="Birth day" onchange="syncAccountDate('adultDob')"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select><select id="adultDobYear" aria-label="Birth year" onchange="syncAccountDate('adultDob')"><option value="">Year</option></select></div><input id="adultDob" type="hidden" aria-label="Date of Birth"></div>
+      <div class="field full"><label for="adultEmail">E-Mail Address</label><input id="adultEmail" type="email" placeholder="example@example.com" autocomplete="email"></div>
+    </div>
+    ${uploadBox('adultGovernmentId', 'Valid Government ID', 'wide-upload')}
+    <div class="registration-agreements">
+      <label class="agreement"><input type="checkbox"><span>I agree to the <a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></label>
+      <label class="agreement"><input type="checkbox"><span>I have read the <a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a></span></label>
+      <p class="agreement-note">Review the Privacy Policy and Terms &amp; Conditions before using this prototype.</p>
+    </div>
+    <button class="primary" onclick="createAccount('adult')">Create Account</button>
+  </div></div>`;
 }
 
 /* ==========================================================================
@@ -1121,14 +1123,30 @@ function submitNewPassport(){
  ['npBirthCertificate','npGovernmentId','npParentConsent','npParentId'].forEach(k=>{delete window.baiUploadFiles[k]});
  go('status');
 }
-function linkApplication(){
- return memberShell(`<div class="page-panel" style="max-width:720px;margin:auto;text-align:center">
-   <h1>LINK YOUR PASSPORT APPLICATION</h1><p>Enter the reference information provided by the DFA<br>to connect your passport application to your MyBAI account.</p>
-   <div class="field" style="width:100%;text-align:left"><label>DFA Appointment Reference No. (ARN)</label><input id="dfaArn" inputmode="numeric" maxlength="17" placeholder="17-digit ARN" oninput="this.value=this.value.replace(/\D/g,'').slice(0,17)"></div>
-   <div class="field" style="width:100%;text-align:left;margin-top:12px"><label>Application Type</label><select id="linkApplicationType"><option value="New Passport">New Passport</option><option value="Passport Renewal">Passport Renewal</option></select></div>
-   <button class="primary" style="margin-top:18px" onclick="linkPassportApplication()">LINK APPLICATION</button>
-   <button class="secondary-action" style="margin-top:10px" onclick="go('status')">← Back to Check Status</button>
- </div>`,'help');
+function linkApplication() {
+  return memberShell(
+    `<div class="page-panel link-application-panel">
+       <button class="back-btn link-app-back" onclick="go('status')">← Back to Check Status</button>
+       <h2>Link Your Passport Application</h2>
+       <p class="status-intro">Enter the 17-digit reference number provided by the DFA to connect your passport application to your MyBAI account.</p>
+       <div class="field">
+         <label for="dfaArn">DFA Appointment Reference No. (ARN)</label>
+         <input id="dfaArn" inputmode="numeric" maxlength="17" placeholder="17-digit ARN (e.g. 00282023010600141)" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,17)">
+       </div>
+       <div class="field">
+         <label for="linkApplicationType">Application Type</label>
+         <select id="linkApplicationType">
+           <option value="New Passport">New Passport</option>
+           <option value="Passport Renewal">Passport Renewal</option>
+         </select>
+       </div>
+       <div class="link-application-actions">
+         <button class="secondary-action" type="button" onclick="go('status')">Cancel</button>
+         <button class="primary" type="button" onclick="linkPassportApplication()">Link Application</button>
+       </div>
+     </div>`,
+    'status'
+  );
 }
 function showLinkApplicationMessage(message){
  const existing=document.getElementById('linkApplicationMessage');
@@ -2253,41 +2271,48 @@ function saveCurrentAccountToRegistry(){
   if(idx>=0) accounts[idx]={...accounts[idx],...record}; else accounts.push(record);
   saveAccountRegistry(accounts); return record;
 }
-function minorRegister(){
+function minorRegister() {
   return `<div class="auth-screen terminal-auth"><div class="registration-card minor-card">
-   <button class="auth-back auth-back-form back-btn" onclick="go('signup')" aria-label="Back to account type">← Back</button>
-   <div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1><span>FOR MINORS</span><br>REGISTRATION REQUIREMENTS</h1><p>Please fill out the form to create an account!</p></div></div>
-   <p class="id-match-note"><b>Note:</b> The information entered must be the same as the information shown on the valid ID you submit.</p>
-   <div class="minor-upload-row">${uploadBox('minorPhoto','Recent<br>Photo','photo-box')}<div class="upload-note"><b>1:1 Recent Photo</b><br>on a white background<br>no facial expressions</div>${uploadBox('minorSchoolId','School ID','school-box')}</div>
-   <div class="form-grid minor-grid">
-     <div class="field"><label>First Name</label><input id="minorFirstName" autocomplete="given-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
-     <div class="field"><label>Last Name</label><input id="minorLastName" autocomplete="family-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\'-]+"></div>
-     <div class="field"><label>Gender</label><select id="minorGender"><option value="" disabled selected hidden>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-     <div class="field"><label>Date of Birth</label><div class="date-select-group"><select id="minorDobMonth" aria-label="Birth month" onchange="syncAccountDate('minorDob')"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select><select id="minorDobDay" aria-label="Birth day" onchange="syncAccountDate('minorDob')"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select><select id="minorDobYear" aria-label="Birth year" onchange="syncAccountDate('minorDob')"><option value="">Year</option></select></div><input id="minorDob" type="hidden" aria-label="Date of Birth"></div>
-     <div class="field"><label>E-Mail</label><input id="minorEmail" type="email" placeholder="example@example.com" autocomplete="email"></div>
-     <div class="field full"><label>Guardian E-Mail</label><input id="guardianEmail" type="email" placeholder="example@example.com" autocomplete="email"></div>
-   </div>
-   ${uploadBox('minorAffiliationId','Proof of Affiliation ID','wide-upload')}
-   <button class="primary" style="margin-top:10px" onclick="createAccount('minor')">Create Account</button>
-   <label class="agreement"><input type="checkbox">Terms of Agreement</label>
-   <label class="agreement"><input type="checkbox">Privacy Policy</label>
-   <p class="agreement-note">By Creating an Account, you agree to the Bisaya Airlines<br>International’s Terms of Agreement, and Burgers</p>
- </div></div>`;
+    <button class="auth-back auth-back-form back-btn" onclick="go('signup')" aria-label="Back to account type">← Back</button>
+    <div class="form-title-row"><div class="choice-icon small"><img src="assets/passport-icon.png" alt="Passport"></div><div><h1><span>FOR MINORS</span><br>REGISTRATION REQUIREMENTS</h1><p>Please fill out the form to create an account!</p></div></div>
+    <p class="id-match-note"><b>Note:</b> The information entered must be the same as the information shown on the valid ID you submit.</p>
+    <div class="minor-upload-row">${uploadBox('minorPhoto', 'Recent<br>Photo', 'photo-box')}<div class="upload-note"><b>1:1 Recent Photo</b><br>On a plain white background<br>Neutral facial expression</div>${uploadBox('minorSchoolId', 'School ID', 'school-box')}</div>
+    <div class="form-grid minor-grid">
+      <div class="field"><label for="minorFirstName">First Name</label><input id="minorFirstName" autocomplete="given-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\\s\\'-]+"></div>
+      <div class="field"><label for="minorLastName">Last Name</label><input id="minorLastName" autocomplete="family-name" oninput="sanitizeName(this)" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\\s\\'-]+"></div>
+      <div class="field minor-gender-field"><label for="minorGender">Gender</label><select id="minorGender"><option value="" disabled selected hidden>Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+      <div class="field minor-dob-field"><label for="minorDobMonth">Date of Birth</label><div class="date-select-group"><select id="minorDobMonth" aria-label="Birth month" onchange="syncAccountDate('minorDob')"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select><select id="minorDobDay" aria-label="Birth day" onchange="syncAccountDate('minorDob')"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select><select id="minorDobYear" aria-label="Birth year" onchange="syncAccountDate('minorDob')"><option value="">Year</option></select></div><input id="minorDob" type="hidden" aria-label="Date of Birth"></div>
+      <div class="field"><label for="minorEmail">Applicant E-Mail</label><input id="minorEmail" type="email" placeholder="example@example.com" autocomplete="email"></div>
+      <div class="field"><label for="guardianEmail">Guardian E-Mail</label><input id="guardianEmail" type="email" placeholder="guardian@example.com" autocomplete="email"></div>
+    </div>
+    ${uploadBox('minorAffiliationId', 'Proof of Affiliation ID', 'wide-upload')}
+    <div class="registration-agreements">
+      <label class="agreement"><input type="checkbox"><span>I agree to the <a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms of Agreement</a></span></label>
+      <label class="agreement"><input type="checkbox"><span>I have read the <a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a></span></label>
+      <p class="agreement-note">By Creating an Account, you agree to the Bisaya Airlines International’s Terms of Agreement, and Burgers</p>
+    </div>
+    <button class="primary" onclick="createAccount('minor')">Create Account</button>
+  </div></div>`;
 }
-function showFormSummary(form,valid){
-  if(!form) return;
+function showFormSummary(form, valid) {
+  if (!form) return;
   form.querySelector('.form-error-summary')?.remove();
-  if(valid) return;
-  const errs=Array.from(form.querySelectorAll('.field-error'));
-  const text=errs.length===1?errs[0].textContent:'Please complete all highlighted fields.';
-  const el=document.createElement('div');
-  el.className='form-error-summary';
-  el.setAttribute('role','alert');
-  el.textContent=text;
-  form.appendChild(el);
-  const hide=()=>el.remove();
-  form.addEventListener('input',hide,{once:true});
-  form.addEventListener('change',hide,{once:true});
+  if (valid) return;
+  const errs = Array.from(form.querySelectorAll('.field-error'));
+  const text = errs.length === 1 ? errs[0].textContent : 'Please complete all highlighted fields below.';
+  const el = document.createElement('div');
+  el.className = 'form-error-summary';
+  el.setAttribute('role', 'alert');
+  el.textContent = text;
+  const anchor = form.querySelector('.id-match-note') || form.querySelector('.form-title-row');
+  if (anchor && anchor.nextSibling) {
+    form.insertBefore(el, anchor.nextSibling);
+  } else {
+    form.appendChild(el);
+  }
+  const hide = () => el.remove();
+  form.addEventListener('input', hide, { once: true });
+  form.addEventListener('change', hide, { once: true });
 }
 function validateCreateAccount(type){
   const form=document.querySelector('.registration-card'); clearFormErrors(form);
@@ -2730,7 +2755,6 @@ function render(){
   app.innerHTML=(pages[page]||login)();
   runPassportStatusSimulation();
   document.querySelectorAll('.profile-avatar').forEach(el=>{el.setAttribute('role','button');el.setAttribute('tabindex','0');el.onclick=toggleUserMenu;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleUserMenu(e);}};});
-  (function(){const a=document.querySelector('.nav button.active');if(!a)return;const prev=parseFloat(sessionStorage.getItem('baiNavTop')||'');const cur=a.offsetTop;sessionStorage.setItem('baiNavTop',String(cur));if(!isNaN(prev)&&prev!==cur&&a.animate){a.animate([{transform:'translateY('+(prev-cur)+'px)'},{transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.4,0,.2,1)'});}})();
   if(page==='adult-register'||page==='minor-register'){ populateAccountBirthYears(); wireCreateAccountValidation(); }
   if(page==='renewal-form'||page==='replacement-form'||page==='new-application') wireUploadInputs(document.querySelector('.renewal-card'));
   if(page==='new-application'){wireRenewalUploadControls();updateNpFeePreview();}
