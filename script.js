@@ -218,6 +218,44 @@ function applicationStatus(app) {
     : (app?.status || 'Pending');
 }
 
+/** Computes stage number, percentage, and state flags for the application progress bar. */
+function applicationProgressInfo(status) {
+  const s = statusLabel(status);
+  if (['REJECTED', 'CANCELLED'].includes(s)) {
+    return { percent: 100, step: 0, total: 6, label: s === 'REJECTED' ? 'Application Rejected' : 'Application Cancelled', state: 'stopped' };
+  }
+  if (['COMPLETED', 'RELEASED / COLLECTED'].includes(s)) {
+    return { percent: 100, step: 6, total: 6, label: 'Stage 6 of 6 · Passport Released / Collected', state: 'complete' };
+  }
+  if (['PASSPORT PRINTED', 'READY FOR RELEASE'].includes(s)) {
+    return { percent: 85, step: 5, total: 6, label: 'Stage 5 of 6 · Ready for Release', state: 'ready' };
+  }
+  if (s === 'PROCESSING') {
+    return { percent: 67, step: 4, total: 6, label: 'Stage 4 of 6 · Processing Passport', state: 'active' };
+  }
+  if (s === 'APPROVED') {
+    return { percent: 50, step: 3, total: 6, label: 'Stage 3 of 6 · Application Approved', state: 'active' };
+  }
+  if (s === 'UNDER REVIEW') {
+    return { percent: 33, step: 2, total: 6, label: 'Stage 2 of 6 · Under Review', state: 'active' };
+  }
+  return { percent: 17, step: 1, total: 6, label: 'Stage 1 of 6 · Pending Review', state: 'active' };
+}
+
+function progressBarHtml(status, idPrefix = 'statusProgress') {
+  const info = applicationProgressInfo(status);
+  return `
+    <div class="status-progress-wrap ${info.state}" id="${idPrefix}Wrap">
+      <div class="status-progress-meta">
+        <span id="${idPrefix}Label">${esc(info.label)}</span>
+        <strong id="${idPrefix}Percent">${info.state === 'stopped' ? esc(statusLabel(status)) : `${info.percent}%`}</strong>
+      </div>
+      <div class="status-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${info.percent}">
+        <div class="status-progress-fill" id="${idPrefix}Fill" style="width:${info.percent}%"></div>
+      </div>
+    </div>`;
+}
+
 /** Maps an application status onto the 6-stage horizontal stepper timeline (or terminal Rejected/Cancelled path). */
 function timelineFor(status) {
   const s = statusLabel(status);
@@ -264,9 +302,9 @@ function timelineFor(status) {
 }
 
 function buildTimeline(status) {
-  const currentApp = getApplications().find(a => a.id === (sessionStorage.getItem('baiCurrentApplicationId') || ''));
-  const actualStatus = currentApp?.type === 'Passport Renewal'
-    ? (currentApp.renewalStatus || currentApp.status || 'Pending')
+  const currentApp = getCurrentApplication();
+  const actualStatus = currentApp && currentApp.status !== 'NOT LINKED'
+    ? applicationStatus(currentApp)
     : status;
   return timelineFor(actualStatus)
     .map(step => `<div class="timeline-step ${step.done ? 'done' : ''} ${step.current ? 'current' : ''}"><span>${step.done ? '✓' : step.current ? '●' : '○'}</span><div><b>${step.title}</b><small>${step.desc}</small></div></div>`)
@@ -847,13 +885,24 @@ function getApplications() {
 function saveApplications(apps) {
   const list = Array.isArray(apps) ? apps : [];
   sessionStorage.setItem('baiApplications', JSON.stringify(list));
-  const id = sessionStorage.getItem('baiAccountId');
+  let id = sessionStorage.getItem('baiAccountId');
+  if (!id && sessionStorage.getItem('baiLoggedIn') === 'true') {
+    const ensured = ensureMemberAccountForLogin(accountEmail());
+    id = ensured.id;
+    sessionStorage.setItem('baiAccountId', id);
+  }
   if (id) {
-    localStorage.setItem(accountApplicationsKey(id), JSON.stringify(list));
+    const stamped = list.map(a => ({
+      ...a,
+      applicationId: a.applicationId || id,
+      memberId: a.memberId || id
+    }));
+    sessionStorage.setItem('baiApplications', JSON.stringify(stamped));
+    localStorage.setItem(accountApplicationsKey(id), JSON.stringify(stamped));
     const accounts = getAccountRegistry();
     const idx = accounts.findIndex(a => a.id === id);
     if (idx >= 0) {
-      accounts[idx].applications = list;
+      accounts[idx].applications = stamped;
       saveAccountRegistry(accounts);
     }
   }
@@ -918,10 +967,10 @@ function formatPersonName(value) {
     .join('');
 }
 
-/** Returns any non-completed, non-cancelled application to enforce the 1-active-application rule. */
+/** Returns any non-completed, non-cancelled, non-rejected application to enforce the 1-active-application rule. */
 function getActiveApplication() {
   const apps = getApplications();
-  return apps.find(a => !['COMPLETED', 'CANCELLED'].includes(String(a.status || '').toUpperCase())) || null;
+  return apps.find(a => !['COMPLETED', 'RELEASED / COLLECTED', 'CANCELLED', 'REJECTED'].includes(statusLabel(applicationStatus(a)))) || null;
 }
 
 /* ==========================================================================
@@ -1187,59 +1236,193 @@ function applicationLinked(){
    9. Member Dashboard, Automated Status Simulation, Profile & Settings
    ========================================================================== */
 
-function dashboard(){
- const apps=getApplications(), current=apps.length?getCurrentApplication():null;
- return `<div class="dashboard">
-   <aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav">
-     <button class="active" onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button>
-   </nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
-   <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions">
-     <button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${notificationBadgeHtml()}</button>
-     <span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span>
-     <div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)" aria-expanded="false"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile'); closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div>
-   </div></header>
-   <main class="content"><section class="hero"><h2><span class="aero">Fly with Pride, Connect the World.</span></h2><p>BAI - Where Pride Takes Flight.</p></section>
-   <div class="cards">
-    <section class="panel"><h3>Recent Updates</h3>${current?`<div class="update"><span class="dot blue">i</span><span>${esc(current.type)} is currently ${esc(statusLabel(current.status).toLowerCase())}.<small style="display:block">Application ID: ${esc(current.id)}</small></span><time>Latest update<br>Today</time></div><div class="update"><span class="dot blue">i</span><span>${current.arn&&current.arn!=='Pending'?'Your DFA reference information is linked to this application.':'Your application record has been created and is ready for tracking.'}<small style="display:block">ARN: ${esc(current.arn||'Pending')}</small></span><time>Latest update<br>Today</time></div>`:`<div class="update"><span class="dot blue">i</span><span>Your MyBAI account is ready. No passport application is currently linked.<small style="display:block">You can start a new application or link an existing one.</small></span><time>Today</time></div>`}</section>
-    <section class="panel"><h3>PASSPORT OVERVIEW</h3>${current?`<div class="passport"><strong>Application</strong><div class="name">${esc(current.type)}</div><strong>Application ID</strong><div class="id">${esc(current.id)}</div><div class="map">⌁</div></div><div class="trip"><div class="trip-head"><span>Application Status</span><span onclick="go('status')" style="cursor:pointer">View details</span></div><div class="route"><span>${esc(statusLabel(current.status))}</span></div><div class="trip-meta">DFA ARN <b>${esc(current.arn||'Pending')}</b><span class="status">ACTIVE</span></div></div>`:`<div class="passport"><strong>MyBAI Account</strong><div class="name">${esc(accountName())}</div><div class="map">⌁</div></div><div class="trip"><div class="trip-head"><span>No Passport Application Linked</span><span onclick="go('status')" style="cursor:pointer">Check Status</span></div><div class="route"><span>Start or link an application when you are ready.</span></div><div class="trip-meta">Your account can have multiple passport applications over time.</div></div>`}</section>
-   </div>
-   <section class="panel services-panel"><h3>PASSPORT SERVICES</h3><div class="service-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('renewal-form')">Renew Passport</button><button class="link-btn service-link" onclick="go('link-application')">Link Existing Passport Application</button></div></section>
-   </main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer>
- </div>`;
+function dashboard() {
+  const apps = getApplications();
+  const current = apps.length ? getCurrentApplication() : null;
+  const curStatus = current ? applicationStatus(current) : '';
+  return `<div class="dashboard">
+    <aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav">
+      <button class="active" onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button>
+    </nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
+    <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions">
+      <button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${notificationBadgeHtml()}</button>
+      <span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span>
+      <div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)" aria-expanded="false"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile'); closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div>
+    </div></header>
+    <main class="content"><section class="hero"><h2><span class="aero">Fly with Pride, Connect the World.</span></h2><p>BAI - Where Pride Takes Flight.</p></section>
+    <div class="cards">
+     <section class="panel"><h3>Recent Updates</h3>${current ? `<div class="update"><span class="dot blue">i</span><span><span id="dashUpdateStatusText">${esc(current.type)} is currently ${esc(statusLabel(curStatus).toLowerCase())}.</span><small style="display:block">Application ID: ${esc(current.id)}</small></span><time>Latest update<br>Just now</time></div><div class="update"><span class="dot blue">i</span><span><span id="dashUpdateArnNote">${current.arn && current.arn !== 'Pending' ? 'Your DFA reference information is linked to this application.' : 'Your application record has been created and is ready for tracking.'}</span><small style="display:block" id="dashUpdateArnCode">ARN: ${esc(current.arn || 'Pending')}</small></span><time>Latest update<br>Today</time></div>` : `<div class="update"><span class="dot blue">i</span><span>Your MyBAI account is ready. No passport application is currently linked.<small style="display:block">You can start a new application or link an existing one.</small></span><time>Today</time></div>`}</section>
+     <section class="panel"><h3>PASSPORT OVERVIEW</h3>${current ? `<div class="passport"><strong>Application</strong><div class="name">${esc(current.type)}</div><strong>Application ID</strong><div class="id">${esc(current.id)}</div><div class="map">⌁</div></div><div class="trip"><div class="trip-head"><span>Application Status</span><span onclick="go('status')" style="cursor:pointer">View details</span></div><div class="route"><span id="dashRouteStatus">${esc(statusLabel(curStatus))}</span></div>${progressBarHtml(curStatus, 'dashProgress')}<div class="trip-meta"><span>DFA ARN <b id="dashTripArn">${esc(current.arn || 'Pending')}</b></span><span class="status" id="dashTripBadge">${['COMPLETED', 'RELEASED / COLLECTED'].includes(statusLabel(curStatus)) ? 'COMPLETED' : ['REJECTED', 'CANCELLED'].includes(statusLabel(curStatus)) ? esc(statusLabel(curStatus)) : 'ACTIVE'}</span></div></div>` : `<div class="passport"><strong>MyBAI Account</strong><div class="name">${esc(accountName())}</div><div class="map">⌁</div></div><div class="trip"><div class="trip-head"><span>No Passport Application Linked</span><span onclick="go('status')" style="cursor:pointer">Check Status</span></div><div class="route"><span>Start or link an application when you are ready.</span></div><div class="trip-meta">Your account can have multiple passport applications over time.</div></div>`}</section>
+    </div>
+    <section class="panel services-panel"><h3>PASSPORT SERVICES</h3><div class="service-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('renewal-form')">Renew Passport</button><button class="link-btn service-link" onclick="go('link-application')">Link Existing Passport Application</button></div></section>
+    </main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer>
+  </div>`;
+}
+
+const AUTO_ROADMAP_STAGES = ['Pending', 'Under Review', 'Approved', 'Processing', 'Ready for Release'];
+const AUTO_STAGE_DURATION_MS = 3000;
+
+function roadmapStageIndex(status) {
+  const s = statusLabel(status);
+  if (['PENDING', 'SUBMITTED'].includes(s)) return 0;
+  if (s === 'UNDER REVIEW') return 1;
+  if (s === 'APPROVED') return 2;
+  if (s === 'PROCESSING') return 3;
+  if (['PASSPORT PRINTED', 'READY FOR RELEASE'].includes(s)) return 4;
+  return -1;
+}
+
+function statusActionButtonsMarkup(current) {
+  if (!current) return '';
+  const norm = statusLabel(applicationStatus(current));
+  if (['COMPLETED', 'RELEASED / COLLECTED', 'CANCELLED', 'REJECTED'].includes(norm)) return '';
+  return `<div class="status-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+    ${norm === 'READY FOR RELEASE' ? `<button class="primary" onclick="confirmApplicationReceived('${esc(current.id)}')">Confirm Passport Received</button>` : ''}
+    <button class="secondary-action" onclick="cancelApplication('${esc(current.id)}')">Cancel Application</button>
+  </div>`;
+}
+
+/** Smoothly updates live progress bars, badges, and roadmap steps in-place without resetting scroll. */
+function refreshLivePassportStatusUI() {
+  const page = parseRouteHash().page;
+  const apps = getApplications();
+  const current = apps.length ? getCurrentApplication() : null;
+  if (!current || current.status === 'NOT LINKED') return;
+
+  const curStatus = applicationStatus(current);
+  const label = statusLabel(curStatus);
+  const info = applicationProgressInfo(curStatus);
+
+  const patchProgress = prefix => {
+    const wrap = document.getElementById(`${prefix}Wrap`);
+    const lbl = document.getElementById(`${prefix}Label`);
+    const pct = document.getElementById(`${prefix}Percent`);
+    const fill = document.getElementById(`${prefix}Fill`);
+    if (wrap) wrap.className = `status-progress-wrap ${info.state}`;
+    if (lbl) lbl.textContent = info.label;
+    if (pct) pct.textContent = info.state === 'stopped' ? label : `${info.percent}%`;
+    if (fill) {
+      fill.style.width = `${info.percent}%`;
+      fill.parentElement?.setAttribute('aria-valuenow', String(info.percent));
+    }
+  };
+
+  if (page === 'status') {
+    patchProgress('statusProgress');
+    const badge = document.querySelector('#statusResult .current-status');
+    if (badge) badge.textContent = label;
+    const timeline = document.getElementById('status-timeline-section');
+    if (timeline) timeline.innerHTML = buildTimeline(curStatus);
+    const arnEl = document.getElementById('statusRefArn');
+    if (arnEl) arnEl.textContent = current.arn || 'Not linked';
+    const payEl = document.getElementById('statusRefPayment');
+    if (payEl) payEl.textContent = current.payment || 'Not linked';
+    const recEl = document.getElementById('statusRefReceipt');
+    if (recEl) recEl.textContent = current.eReceipt || 'Not linked';
+    const remEl = document.getElementById('statusRefRemarks');
+    if (remEl) remEl.textContent = current.administratorRemarks || 'No remarks yet.';
+    const actHost = document.getElementById('statusActionsHost');
+    if (actHost) actHost.innerHTML = statusActionButtonsMarkup(current);
+    document.querySelectorAll('.application-list-item').forEach(row => {
+      const appId = row.getAttribute('data-app-id');
+      const match = apps.find(x => x.id === appId);
+      const sub = row.querySelector('small');
+      if (match && sub) sub.textContent = statusLabel(applicationStatus(match));
+    });
+  } else if (page === 'dashboard') {
+    patchProgress('dashProgress');
+    const routeStatus = document.getElementById('dashRouteStatus');
+    if (routeStatus) routeStatus.textContent = label;
+    const updateText = document.getElementById('dashUpdateStatusText');
+    if (updateText) updateText.textContent = `${current.type} is currently ${label.toLowerCase()}.`;
+    const arnNote = document.getElementById('dashUpdateArnNote');
+    if (arnNote) {
+      arnNote.textContent = current.arn && current.arn !== 'Pending'
+        ? 'Your DFA reference information is linked to this application.'
+        : 'Your application record has been created and is ready for tracking.';
+    }
+    const arnCode = document.getElementById('dashUpdateArnCode');
+    if (arnCode) arnCode.textContent = `ARN: ${current.arn || 'Pending'}`;
+    const tripArn = document.getElementById('dashTripArn');
+    if (tripArn) tripArn.textContent = current.arn || 'Pending';
+  }
+  refreshNotificationBadges();
 }
 
 /**
- * Once an Admin marks an application `Approved`, automatically advances it through
- * `Processing` (3s) -> `Ready for Release` (6s) -> `Released / Collected` (9s)
- * to demonstrate the full post-review lifecycle in the prototype.
+ * Automatically advances active passport applications every 3 seconds along the roadmap:
+ * `Pending` -> `Under Review` -> `Approved` -> `Processing` -> `Ready for Release`
+ * (stopping at `Ready for Release` so the member can click `Confirm Passport Received`).
  */
-function runPassportStatusSimulation(){
- if(window.__baiPassportStatusSimulation) return;
- window.__baiPassportStatusSimulation=window.setInterval(()=>{
-  if(sessionStorage.getItem('baiLoggedIn')!=='true') return;
-  const apps=getApplications(); let changed=false; const now=Date.now();
-  const simulated=['Approved','Processing','Ready for Release','Released / Collected'];
-  for(const a of apps){
-   const status=String(a.renewalStatus||a.status||'Pending');
-   if(!simulated.includes(status)) continue;
-   if(!a.simulationStartedAt){ a.simulationStartedAt=new Date(now).toISOString(); changed=true; }
-   const elapsed=now-new Date(a.simulationStartedAt).getTime();
-   const target=elapsed>=9000?'Released / Collected':elapsed>=6000?'Ready for Release':elapsed>=3000?'Processing':'Approved';
-   const rank={'Approved':0,'Processing':1,'Ready for Release':2,'Released / Collected':3};
-   if(rank[target]>rank[status]){ a.renewalStatus=target; a.status=target; a.updatedAt=new Date(now).toISOString(); changed=true; }
-  }
-  if(changed){ saveApplications(apps); if(parseRouteHash().page==='status'){ const y=window.scrollY; render(); window.scrollTo(0,y); } }
- },500);
+function runPassportStatusSimulation() {
+  if (window.__baiPassportStatusSimulation) return;
+  window.__baiPassportStatusSimulation = window.setInterval(() => {
+    if (sessionStorage.getItem('baiLoggedIn') !== 'true') return;
+    const apps = getApplications();
+    if (!apps.length) return;
+    let changed = false;
+    const now = Date.now();
+    const nowStr = new Date(now).toISOString();
+
+    for (const a of apps) {
+      const curStatus = applicationStatus(a);
+      const idx = roadmapStageIndex(curStatus);
+      // Stop automatically once Ready for Release (idx === 4) or any terminal state (idx < 0) is reached
+      if (idx < 0 || idx >= AUTO_ROADMAP_STAGES.length - 1) continue;
+
+      const stageName = AUTO_ROADMAP_STAGES[idx];
+      if (!a.stageEnteredAt || a.stageStatus !== stageName) {
+        a.stageEnteredAt = nowStr;
+        a.stageStatus = stageName;
+        changed = true;
+        continue;
+      }
+
+      const elapsed = now - new Date(a.stageEnteredAt).getTime();
+      if (elapsed >= AUTO_STAGE_DURATION_MS) {
+        const nextStage = AUTO_ROADMAP_STAGES[idx + 1];
+        a.status = nextStage;
+        if (a.type === 'Passport Renewal') a.renewalStatus = nextStage;
+        a.stageStatus = nextStage;
+        a.stageEnteredAt = nowStr;
+        a.updatedAt = nowStr;
+
+        // Populate realistic DFA tracking references once Approved is reached
+        if (nextStage === 'Approved') {
+          if (!a.arn || a.arn === 'Pending') a.arn = `00282026${String(now).slice(-9)}`;
+          if (!a.payment || a.payment === 'Pending') a.payment = `DF${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+          if (!a.eReceipt || a.eReceipt === 'Pending') a.eReceipt = `ER-${String(now).slice(-10)}`;
+          if (!a.administratorRemarks) a.administratorRemarks = 'Application and supporting documents verified and approved.';
+        }
+
+        if (nextStage === 'Ready for Release' && !a.readyNotified) {
+          a.readyNotified = true;
+          if (setting('statusUpdates', true)) {
+            addHelpNotification(accountEmail(), `Your ${a.type} (${a.id}) is now Ready for Release!`, null, memberId());
+          }
+        }
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveApplications(apps);
+      refreshLivePassportStatusUI();
+    }
+  }, 500);
 }
-function status(){
- const apps=getApplications(); const current=apps.length?getCurrentApplication():null;
- const list=apps.map(a=>`<div class="application-list-item ${current&&a.id===current.id?'selected':''}"><div><span class="status-label">${esc(a.type)}</span><h3>${esc(a.id)}</h3><small>${esc(statusLabel(applicationStatus(a)))}</small></div><button class="primary" onclick="viewApplication('${esc(a.id)}')">View Status</button></div>`).join('');
- return `<div class="dashboard"><aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav"><button onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button class="active" onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button></nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
- <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions"><button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${notificationBadgeHtml()}</button><span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span><div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile');closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div></div></header>
- <main class="content"><div class="page-panel status-panel"><h2>Check Passport Application Status</h2><p class="status-intro">Select a passport application to view its current status and reference information.</p>
- ${apps.length?`<div class="application-list">${list}</div>`:`<div class="empty-status"><h3>No Passport Application Linked</h3><p>Your MyBAI account is ready, but there is no passport application linked yet.</p><div class="status-empty-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('link-application')">Link Existing Application</button></div></div>`}
- ${current?`<div id="statusResult" class="status-result visible"><div class="status-result-head"><div><span class="status-label">PASSPORT APPLICATION</span><h3>Application Details</h3></div><span class="current-status">${esc(statusLabel(applicationStatus(current)))}</span></div><div class="reference-grid"><div><span>Application Type</span><b>${esc(current.type)}</b></div><div><span>BAI Application ID</span><b>${esc(current.id)}</b></div><div><span>Appointment Reference No. (ARN)</span><b>${esc(current.arn||'Not linked')}</b></div><div><span>Payment Reference</span><b>${esc(current.payment||'Not linked')}</b></div><div><span>eReceipt No.</span><b>${esc(current.eReceipt||'Not linked')}</b></div>${current.type==='Passport Renewal'?`<div><span>Renewal ID</span><b>${esc(current.renewalId||current.id)}</b></div><div><span>Estimated Total Fee</span><b>₱${Number(current.totalFee||0).toLocaleString('en-PH')}</b></div><div><span>Administrator Remarks</span><b>${esc(current.administratorRemarks||'No remarks yet.')}</b></div>`:''}</div><div class="status-timeline" id="status-timeline-section">${buildTimeline(current.status)}</div><p class="status-note">Your application references are associated with this passport application record.</p>${current && !['COMPLETED','RELEASED / COLLECTED','CANCELLED','REJECTED'].includes(String(applicationStatus(current)).toUpperCase())?`<div class="status-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">${String(current.status||'').toUpperCase()==='READY FOR RELEASE'?`<button class="primary" onclick="confirmApplicationReceived('${esc(current.id)}')">Confirm Passport Received</button>`:''}<button class="secondary-action" onclick="cancelApplication('${esc(current.id)}')">Cancel Application</button></div>`:''}</div>`:''}
- </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
+
+function status() {
+  const apps = getApplications();
+  const current = apps.length ? getCurrentApplication() : null;
+  const curStatus = current ? applicationStatus(current) : '';
+  const list = apps.map(a => `<div class="application-list-item ${current && a.id === current.id ? 'selected' : ''}" data-app-id="${esc(a.id)}"><div><span class="status-label">${esc(a.type)}</span><h3>${esc(a.id)}</h3><small>${esc(statusLabel(applicationStatus(a)))}</small></div><button class="primary" onclick="viewApplication('${esc(a.id)}')">View Status</button></div>`).join('');
+  return `<div class="dashboard"><aside class="sidebar"><div class="sidebar-logo"><img src="assets/dashboard-logo.png" alt="BAI logo"></div><nav class="nav"><button onclick="go('dashboard')"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Dashboard</button><button onclick="go('profile')"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>My Profile</button><button class="active" onclick="go('status')"><svg class="ni" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Check Status</button><button onclick="go('settings')"><svg class="ni" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Settings</button></nav><div class="help"><strong>Need Help?</strong><br>We're here for you!<br><button onclick="go('help-center')">Contact Support</button></div></aside>
+  <header class="topbar"><div class="welcome">Good Day, <span class="aero">${esc(accountName())}!</span><small>Welcome Back to BAI!</small></div><div class="top-actions"><button class="notification-btn" aria-label="Notifications" onclick="showMemberNotifications()"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 13a8 8 0 0 1 16 0v7l3 3H5l3-3v-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 26c.7 1.3 1.7 2 3 2s2.3-.7 3-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>${notificationBadgeHtml()}</button><span class="profile-avatar" aria-label="User profile"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="white"/><path d="M7 27c.7-5.3 4-8 9-8s8.3 2.7 9 8" fill="white"/></svg></span><div class="user-menu" id="userMenu"><button class="user-menu-toggle" onclick="toggleUserMenu(event)"><span>${esc(accountName())}</span><span class="chevron">⌄</span></button><div class="user-dropdown"><button onclick="go('profile');closeUserMenu()">My Profile</button><button class="logout" onclick="logout()">Logout</button></div></div></div></header>
+  <main class="content"><div class="page-panel status-panel"><h2>Check Passport Application Status</h2><p class="status-intro">Select a passport application to view its live roadmap progress and reference information.</p>
+  ${apps.length ? `<div class="application-list">${list}</div>` : `<div class="empty-status"><h3>No Passport Application Linked</h3><p>Your MyBAI account is ready, but there is no passport application linked yet.</p><div class="status-empty-actions"><button class="primary" onclick="go('new-application')">Apply for New Passport</button><button class="primary" onclick="go('link-application')">Link Existing Application</button></div></div>`}
+  ${current ? `<div id="statusResult" class="status-result visible"><div class="status-result-head"><div><span class="status-label">PASSPORT APPLICATION</span><h3>Application Details</h3></div><span class="current-status">${esc(statusLabel(curStatus))}</span></div><div class="reference-grid"><div><span>Application Type</span><b>${esc(current.type)}</b></div><div><span>BAI Application ID</span><b>${esc(current.id)}</b></div><div><span>Appointment Reference No. (ARN)</span><b id="statusRefArn">${esc(current.arn || 'Not linked')}</b></div><div><span>Payment Reference</span><b id="statusRefPayment">${esc(current.payment || 'Not linked')}</b></div><div><span>eReceipt No.</span><b id="statusRefReceipt">${esc(current.eReceipt || 'Not linked')}</b></div>${current.type === 'Passport Renewal' ? `<div><span>Renewal ID</span><b>${esc(current.renewalId || current.id)}</b></div><div><span>Estimated Total Fee</span><b>₱${Number(current.totalFee || 0).toLocaleString('en-PH')}</b></div><div><span>Administrator Remarks</span><b id="statusRefRemarks">${esc(current.administratorRemarks || 'No remarks yet.')}</b></div>` : ''}</div>${progressBarHtml(curStatus, 'statusProgress')}<div class="status-timeline" id="status-timeline-section">${buildTimeline(curStatus)}</div><p class="status-note">Your application references are associated with this passport application record.</p><div id="statusActionsHost">${statusActionButtonsMarkup(current)}</div></div>` : ''}
+  </div></main><footer class="footer"><span>© 2026 Bisaya Airlines International (BAI). All rights reserved.</span><span><a href="#privacy-policy" onclick="event.preventDefault();go('privacy-policy')">Privacy Policy</a>　|　<a href="#terms-conditions" onclick="event.preventDefault();go('terms-conditions')">Terms &amp; Conditions</a></span></footer></div>`;
 }
 function viewApplication(id) {
   if (!getApplications().some(a => a.id === id)) return;
@@ -2427,9 +2610,44 @@ function enquiryForm(){
   return memberShell(`<div class="page-panel enquiry-form-panel"><div class="subpage-top"><button class="link-btn back-btn" onclick="go('${conv?'ai-chat':'help-center'}')">← Back</button><h2>Submit an Enquiry</h2><p>${conv?'Your AI Assistant conversation will be included so support personnel can see what you already asked.':'Send your question directly to a support personnel.'}</p></div><form class="enquiry-form" onsubmit="submitEnquiry(event)"><div class="form-grid enquiry-grid"><div class="field"><label for="enquiryEmail">Email Address</label><input id="enquiryEmail" value="${esc(accountEmail())}" readonly></div><div class="field"><label for="enquiryCategory">Enquiry Type</label><select id="enquiryCategory" required>${supportCategoryOptions('')}</select></div><div class="field full"><label for="enquiryApplication">Related Application (optional)</label><select id="enquiryApplication">${relatedApplicationOptions('')}</select><small class="field-help">Select an application only when your question is about a specific passport application.</small></div><div class="field full"><label for="enquiryBody">Message</label><textarea id="enquiryBody" required placeholder="Describe your enquiry...">${esc(defaultDescription)}</textarea></div><div class="field full"><label for="enquiryAttachment">Attachment (optional)</label><input id="enquiryAttachment" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onchange="validateEnquiryAttachment(this)"><small class="field-help">Optional PNG, JPG, WEBP, or PDF. Up to 5 files, 10 MB each.</small><div id="enquiryAttachmentCount" class="attachment-count">0 / 5 files</div><div id="enquiryAttachmentList"></div><div id="enquiryAttachmentError"></div></div></div>${sourceArticle?`<div class="chat-context article-context"><div class="chat-context-head"><b>Article Referenced</b><span>${esc(articleTypeLabel(sourceArticle.type))}</span></div><div class="chat-transcript"><div><b>${esc(sourceArticle.title)}</b><br>${esc(truncateText(sourceArticle.body,300))}</div></div></div>`:''}${conv?`<div class="chat-context"><div class="chat-context-head"><b>AI Chat Transcript</b><span>${transcript.length} message${transcript.length===1?'':'s'}</span></div><div class="chat-transcript">${transcript.map(m=>`<div><b>${m.sender==='member'?'You':'AI'}:</b> ${esc(m.text)}</div>`).join('')}</div></div>`:''}<div class="enquiry-actions"><button class="secondary-action" type="button" onclick="go('${conv?'ai-chat':'help-center'}')">Cancel</button><button class="primary" type="submit">Submit Enquiry</button></div></form></div>`,'help');
 }
 
-function updateApplicationStatus(id,status,message){ const apps=getApplications(); const idx=apps.findIndex(a=>a.id===id); if(idx<0)return false; const old=apps[idx].status; apps[idx]={...apps[idx],status,updatedAt:nowIso()}; saveApplications(apps); sessionStorage.setItem('baiCurrentApplicationId',id); if(old!==status && message && setting('statusUpdates',true)) addHelpNotification(accountEmail(),message,id,memberId()); return true; }
-function confirmApplicationReceived(id){ const app=findApplicationById(id); if(!app || String(app.status||'').toUpperCase()!=='READY FOR RELEASE') return; if(confirm('Confirm that you have received your passport?')){ updateApplicationStatus(id,'COMPLETED',`Your ${app.type} application ${app.id} has been marked as completed.`); go('status'); } }
-function cancelApplication(id){ const app=findApplicationById(id); if(!app || ['COMPLETED','CANCELLED'].includes(String(app.status||'').toUpperCase())) return; if(confirm('Cancel this passport application?')){ updateApplicationStatus(id,'CANCELLED',`Your ${app.type} application ${app.id} has been cancelled.`); go('status'); } }
+function updateApplicationStatus(id, status, message) {
+  const apps = getApplications();
+  const idx = apps.findIndex(a => a.id === id);
+  if (idx < 0) return false;
+  const old = applicationStatus(apps[idx]);
+  apps[idx] = {
+    ...apps[idx],
+    status,
+    ...(apps[idx].type === 'Passport Renewal' ? { renewalStatus: status } : {}),
+    stageStatus: status,
+    stageEnteredAt: nowIso(),
+    updatedAt: nowIso()
+  };
+  saveApplications(apps);
+  sessionStorage.setItem('baiCurrentApplicationId', id);
+  if (old !== status && message && setting('statusUpdates', true)) {
+    addHelpNotification(accountEmail(), message, id, memberId());
+  }
+  return true;
+}
+
+function confirmApplicationReceived(id) {
+  const app = findApplicationById(id);
+  if (!app || statusLabel(applicationStatus(app)) !== 'READY FOR RELEASE') return;
+  if (confirm('Confirm that you have received your passport?')) {
+    updateApplicationStatus(id, 'COMPLETED', `Your ${app.type} application ${app.id} has been marked as completed.`);
+    go('status');
+  }
+}
+
+function cancelApplication(id) {
+  const app = findApplicationById(id);
+  if (!app || ['COMPLETED', 'RELEASED / COLLECTED', 'CANCELLED', 'REJECTED'].includes(statusLabel(applicationStatus(app)))) return;
+  if (confirm('Cancel this passport application?')) {
+    updateApplicationStatus(id, 'CANCELLED', `Your ${app.type} application ${app.id} has been cancelled.`);
+    go('status');
+  }
+}
 
 
 /* ==========================================================================

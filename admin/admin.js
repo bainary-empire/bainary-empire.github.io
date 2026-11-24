@@ -864,9 +864,10 @@ function toggleStatus(id) {
    7. Passport Renewal Application Review
    ========================================================================== */
 
-/** Scans all `baiApplications_<memberId>` keys for Passport Renewal records. */
+/** Scans all `baiApplications_<memberId>` keys (and `baiAccountRegistry` fallback) for Passport Renewal records. */
 function getAllRenewals() {
   const out = [];
+  const seen = new Set();
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !key.startsWith('baiApplications_')) continue;
@@ -874,11 +875,28 @@ function getAllRenewals() {
       const arr = JSON.parse(localStorage.getItem(key) || '[]');
       if (!Array.isArray(arr)) continue;
       arr.forEach((a, index) => {
-        if (a.type === 'Passport Renewal') out.push({ app: a, key, index });
+        if (a.type === 'Passport Renewal' && a.id && !seen.has(a.id)) {
+          seen.add(a.id);
+          out.push({ app: a, key, index });
+        }
       });
     } catch {
       // Ignore malformed storage entries
     }
+  }
+  const registry = jsonGet('baiAccountRegistry', []);
+  if (Array.isArray(registry)) {
+    registry.forEach(acct => {
+      if (!acct?.id || !Array.isArray(acct.applications)) return;
+      const key = `baiApplications_${acct.id}`;
+      acct.applications.forEach((a, index) => {
+        if (a.type === 'Passport Renewal' && a.id && !seen.has(a.id)) {
+          seen.add(a.id);
+          if (!localStorage.getItem(key)) jsonSet(key, acct.applications);
+          out.push({ app: a, key, index });
+        }
+      });
+    });
   }
   return out.sort((a, b) => String(b.app.createdAt || '').localeCompare(String(a.app.createdAt || '')));
 }
@@ -892,12 +910,14 @@ function renewals() {
     <section class="head">
       <div>
         <h2>Passport Renewal Management</h2>
-        <p>Review renewal requests, verify document details, and record a decision: Pending, Under Review, Approved, or Rejected.</p>
+        <p>Review renewal requests, verify document details, and record a decision.</p>
       </div>
-      <select onchange="go('renewals',this.value?{status:this.value}:{})">
-        <option value="">All statuses</option>
-        ${['Pending', 'Under Review', 'Approved', 'Rejected'].map(s => `<option ${status === s ? 'selected' : ''}>${s}</option>`).join('')}
-      </select>
+      <div class="filters" style="margin:0">
+        <select onchange="go('renewals',this.value?{status:this.value}:{})">
+          <option value="">All statuses</option>
+          ${['Pending', 'Under Review', 'Approved', 'Processing', 'Ready for Release', 'COMPLETED', 'Rejected'].map(s => `<option value="${s}" ${status === s ? 'selected' : ''}>${s === 'COMPLETED' ? 'Completed' : s}</option>`).join('')}
+        </select>
+      </div>
     </section>
     <section class="card">
       <div class="table-wrap">
@@ -1070,9 +1090,10 @@ function saveRenewalDecision(e, id, key) {
    8. New Passport Application Review
    ========================================================================== */
 
-/** Scans all `baiApplications_<memberId>` keys for New Passport records. */
+/** Scans all `baiApplications_<memberId>` keys (and `baiAccountRegistry` fallback) for New Passport records. */
 function getAllNewApplications() {
   const out = [];
+  const seen = new Set();
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !key.startsWith('baiApplications_')) continue;
@@ -1080,11 +1101,28 @@ function getAllNewApplications() {
       const arr = JSON.parse(localStorage.getItem(key) || '[]');
       if (!Array.isArray(arr)) continue;
       arr.forEach((a, index) => {
-        if (a.type === 'New Passport') out.push({ app: a, key, index });
+        if (a.type === 'New Passport' && a.id && !seen.has(a.id)) {
+          seen.add(a.id);
+          out.push({ app: a, key, index });
+        }
       });
     } catch {
       // Ignore malformed storage entries
     }
+  }
+  const registry = jsonGet('baiAccountRegistry', []);
+  if (Array.isArray(registry)) {
+    registry.forEach(acct => {
+      if (!acct?.id || !Array.isArray(acct.applications)) return;
+      const key = `baiApplications_${acct.id}`;
+      acct.applications.forEach((a, index) => {
+        if (a.type === 'New Passport' && a.id && !seen.has(a.id)) {
+          seen.add(a.id);
+          if (!localStorage.getItem(key)) jsonSet(key, acct.applications);
+          out.push({ app: a, key, index });
+        }
+      });
+    });
   }
   return out.sort((a, b) => String(b.app.createdAt || '').localeCompare(String(a.app.createdAt || '')));
 }
@@ -1103,12 +1141,14 @@ function newApplications() {
     <section class="head">
       <div>
         <h2>New Passport Application Management</h2>
-        <p>Review new passport applications, verify documents, and record a decision: Pending, Under Review, Approved, or Rejected.</p>
+        <p>Review new passport applications, verify documents, and record a decision.</p>
       </div>
-      <select onchange="go('new-applications',this.value?{status:this.value}:{})">
-        <option value="">All statuses</option>
-        ${['Pending', 'Under Review', 'Approved', 'Rejected'].map(s => `<option ${status === s ? 'selected' : ''}>${s}</option>`).join('')}
-      </select>
+      <div class="filters" style="margin:0">
+        <select onchange="go('new-applications',this.value?{status:this.value}:{})">
+          <option value="">All statuses</option>
+          ${['Pending', 'Under Review', 'Approved', 'Processing', 'Ready for Release', 'COMPLETED', 'Rejected'].map(s => `<option value="${s}" ${status === s ? 'selected' : ''}>${s === 'COMPLETED' ? 'Completed' : s}</option>`).join('')}
+        </select>
+      </div>
     </section>
     <section class="card">
       <div class="table-wrap">
@@ -1294,4 +1334,10 @@ function render() {
 }
 
 window.addEventListener('hashchange', render);
+window.addEventListener('storage', e => {
+  if (!e.key || e.key.startsWith('baiApplications_') || e.key === 'baiAccountRegistry') {
+    const page = (location.hash || '#login').slice(1).split('?')[0];
+    if (['renewals', 'new-applications'].includes(page)) render();
+  }
+});
 render();
